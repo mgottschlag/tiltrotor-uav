@@ -1,0 +1,8 @@
+
+# Ignore temporary files of VIM
+[._]*.s[a-v][a-z]
+!*.svg  # include vector graphics
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
