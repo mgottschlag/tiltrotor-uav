@@ -1,0 +1,106 @@
+@startuml
+
+set namespaceSeparator ::
+
+class IMU
+
+class Compass
+
+class GPS
+
+class Pressure
+
+class Sensors
+
+class Radio
+
+class FlightController {
+	timer_interrupt()
+}
+
+class Engines {
+	set_thrust(thrust: [u32; 4])
+}
+
+class FlightControls {
+	set_rudder(rudder: i32)
+	set_elevator(elevator: i32)
+	rotate_engines(rotation: i32)
+}
+
+class BatteryMonitor {
+	reset_soc()
+	current() -> u32
+	remaining_charge() -> u32
+}
+
+class Radio {
+	poll() -> Packet
+	set_ack_payload(packet)
+}
+
+class CommandProcessor {
+	radio_interrupt()
+	timer_interrupt()
+}
+
+class State {
+	task
+	current_location
+}
+
+class protocol::Command {
+	serialize()
+	deserialize()
+}
+class protocol::Telemetry {
+	serialize()
+	deserialize()
+}
+
+enum Task {
+	Fly{is_plane, forward_speed, side_speed, yaw_speed, climb_rate}
+	Stationary
+	EmergencyDescent
+}
+
+Task <-- State
+
+IMU <-- Sensors
+Compass <-- Sensors
+GPS <-- Sensors
+Pressure <-- Sensors
+
+State <-- FlightController
+Engines <-- FlightController
+FlightControls <-- FlightController
+
+Radio <-- CommandProcessor
+'FlightController <-left- CommandProcessor
+BatteryMonitor <-- CommandProcessor
+State <-- CommandProcessor
+protocol::Command <-- CommandProcessor
+protocol::Telemetry <-- CommandProcessor
+
+Sensors <-right- FlightController
+
+note bottom of FlightController
+FlightController code has a higher priority
+than CommandProcessor code. Both interact
+only via the State variable hidden behind a
+mutex.
+end note
+
+note top of Radio
+Telemetry is stored in the NRF24 ACK payload.
+end note
+
+note top of Engines
+The ESC needs to be updated
+once per 2 milliseconds or
+else it may stop.
+
+TODO: Check this information.
+end note
+
+@enduml
