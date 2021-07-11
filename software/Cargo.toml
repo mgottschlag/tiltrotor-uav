@@ -3,3 +3,8 @@ members = [
     "firmware"
 ]
 
+[profile]
+[profile.release]
+debug = true
+lto = true
+

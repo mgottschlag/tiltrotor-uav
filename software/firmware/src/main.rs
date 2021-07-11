@@ -3,7 +3,9 @@
 
 use panic_semihosting as _;
 
-#[rtic::app(device = stm32f4xx_hal::stm32, peripherals = true)]
+mod board;
+
+#[rtic::app(device = crate::board::pac, peripherals = true)]
 const APP: () = {
     struct Resources {
         _placeholder: u32,

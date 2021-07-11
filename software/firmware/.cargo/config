@@ -4,6 +4,16 @@ rustflags = [
   "-C", "link-arg=-Tlink.x",
 ]
 
-[build]
-target = "thumbv7em-none-eabihf"
+[target.thumbv7m-none-eabi]
+runner = "arm-none-eabi-gdb -x openocd.gdb"
+rustflags = [
+  "-C", "link-arg=-Tlink.x",
+]
 
+[alias]
+build-bluepill = "build --target=thumbv7m-none-eabi --features=bluepill"
+build-blackpill = "build --target=thumbv7em-none-eabihf --features=blackpill"
+build-nrf52 = "build --target=thumbv7em-none-eabihf --features=feather_nrf52840"
+run-bluepill = "run --target=thumbv7m-none-eabi --features=bluepill"
+run-blackpill = "run --target=thumbv7em-none-eabihf --features=blackpill"
+run-nrf52 = "run --target=thumbv7em-none-eabihf --features=feather_nrf52840"
