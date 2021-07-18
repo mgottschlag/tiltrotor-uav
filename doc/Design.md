@@ -53,7 +53,7 @@ TBD
 
 TBD
 
-### Weight Calcualation
+### Weight Calculation
 
 TBD
 
