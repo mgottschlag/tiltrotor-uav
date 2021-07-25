@@ -11,3 +11,8 @@ mod blackpill;
 mod bluepill;
 #[cfg(feature = "feather_nrf52840")]
 mod feather_nrf52840;
+
+pub trait EnginePwm {
+    fn get_max_duty(&self) -> u16;
+    fn set_duty(&mut self, duty: [u16; 4]);
+}

@@ -210,6 +210,7 @@ dependencies = [
  "cortex-m 0.7.3",
  "cortex-m-rt",
  "cortex-m-rtic",
+ "cortex-m-semihosting",
  "embedded-hal",
  "embedded-nrf24l01",
  "nb 1.0.0",
