@@ -1,7 +1,7 @@
 [package]
 name = "firmware"
 version = "0.1.0"
-authors = ["Mathias Gottschlag <mgottschlag@gmail.com>"]
+authors = ["Mathias Gottschlag <mgottschlag@gmail.com>", "Maximilian Hess <mail@ne0h.de>"]
 edition = "2018"
 
 [dependencies]
@@ -16,7 +16,7 @@ nrf52840-hal = { version = "0.12.2", features = ["rt"], optional = true }
 #protocol = { path = "../protocol" }
 panic-semihosting = "0.5.6"
 stm32f1xx-hal = { version = "0.7", features = ["stm32f103", "rt"], optional = true }
-stm32f4xx-hal = { version = "0.9", features = ["stm32f411", "rt"], optional = true }
+stm32f4xx-hal = { version = "0.9", features = ["stm32f401", "rt"], optional = true }
 
 [features]
 # Compile for a bluepill-based prototype (STM32F1).
@@ -25,4 +25,3 @@ bluepill = [ "stm32f1xx-hal" ]
 blackpill = [ "stm32f4xx-hal" ]
 # Compile for an NRF52840.
 feather_nrf52840 = [ "nrf52840-hal" ]
-
