@@ -5,6 +5,10 @@ jobs:
       - PROJECT=firmware
       - BOARD=bluepill
       - TARGET=thumbv7m-none-eabi
+    - env:
+      - PROJECT=firmware
+      - BOARD=blackpill
+      - TARGET=thumbv7em-none-eabihf
 script:
   - |
     cd software/$PROJECT

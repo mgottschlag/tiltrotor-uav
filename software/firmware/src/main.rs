@@ -2,6 +2,7 @@
 #![no_std]
 
 use cortex_m::peripheral::DWT;
+use cortex_m_semihosting::hprintln;
 use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 
@@ -15,7 +16,7 @@ const APP: () = {
         engines: Engines,
     }
 
-    #[init(schedule = [calibration1])]
+    #[init(schedule = [engine_test])]
     fn init(mut ctx: init::Context) -> init::LateResources {
         // Initialize (enable) the monotonic timer (CYCCNT)
         ctx.core.DCB.enable_trace();
@@ -28,7 +29,7 @@ const APP: () = {
         let engine_pwm = board.engines;
 
         ctx.schedule
-            .calibration1(ctx.start + 48_000_000.cycles())
+            .engine_test(ctx.start + 48_000_000.cycles())
             .unwrap();
 
         init::LateResources {
@@ -68,6 +69,14 @@ const APP: () = {
         } else {
             engines.engine_speed += 10;
         }
+
+        hprintln!(
+            "Engine: #{} | Speed: {}",
+            engines.current_engine,
+            engines.engine_speed
+        )
+        .ok();
+
         let max_duty = engines.engine_pwm.get_max_duty() as u32;
         let mut duty = [0; 4];
         // We want between 1-2ms of each 50ms PWM period.
