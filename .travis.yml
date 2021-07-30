@@ -1,8 +1,12 @@
 language: rust
 jobs:
   include:
-    - env: BOARD=bluepill
+    - env:
+      - BOARD=bluepill
+      - TARGET=thumbv7m-none-eabi
 script:
-  - rustup target add thumbv7m-none-eabi
-  - cd software/firmware; cargo build-$BLUEPILL --release
+  - |
+    cd software/firmware
+    rustup target add $TARGET
+    cargo build-$BOARD --release
 
