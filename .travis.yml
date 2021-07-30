@@ -1,5 +1,5 @@
 language: rust
 script:
-  - rustup target add thumbv7em-none-eabihf
+  - rustup target add thumbv7m-none-eabi
   - cd software/firmware; cargo build-bluepill --release
 
