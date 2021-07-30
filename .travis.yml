@@ -1,0 +1,4 @@
+language: rust
+script:
+  - cd software/firmware; cargo build-bluepill --release
+
