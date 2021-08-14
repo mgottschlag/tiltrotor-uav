@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "flightcontroller-symbols")(type "KiCad")(uri "${KIPRJMOD}/flightcontroller-symbols.kicad_sym")(options "")(descr ""))
+)
