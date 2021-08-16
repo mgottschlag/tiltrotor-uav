@@ -1,15 +1,12 @@
 use stm32f4xx_hal::gpio::gpioa::{PA10, PA5, PA6, PA7, PA8, PA9};
-use stm32f4xx_hal::gpio::{Alternate, AF5};
-use stm32f4xx_hal::gpio::{Output, PushPull};
+use stm32f4xx_hal::gpio::{Alternate, Output, PushPull, AF5};
 use stm32f4xx_hal::pac::SPI1;
 use stm32f4xx_hal::prelude::*;
-use stm32f4xx_hal::pwm;
-use stm32f4xx_hal::pwm::{PwmChannels, C1, C2, C3, C4};
+use stm32f4xx_hal::pwm::{self, PwmChannels, C1, C2, C3, C4};
 use stm32f4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32f4xx_hal::stm32 as pac;
 
 use super::EnginePwm;
-use super::Radio;
 
 pub type RadioSck = PA5<Alternate<AF5>>;
 pub type RadioMiso = PA6<Alternate<AF5>>;
@@ -21,7 +18,10 @@ pub type RadioSpi = Spi<SPI1, (RadioSck, RadioMiso, RadioMosi)>;
 
 pub struct Board {
     pub engines: BlackpillEnginePwm,
-    pub radio: Radio,
+    pub radio_spi: RadioSpi,
+    pub radio_cs: RadioCs,
+    pub radio_ce: RadioCe,
+    pub radio_irq: RadioIrq,
 }
 
 impl Board {
@@ -63,9 +63,14 @@ impl Board {
             stm32f4xx_hal::time::KiloHertz(2000).into(),
             clocks,
         );
-        let radio = Radio::init(radio_spi, radio_cs, radio_ce, radio_irq);
 
-        Board { engines, radio }
+        Board {
+            engines,
+            radio_spi,
+            radio_cs,
+            radio_ce,
+            radio_irq,
+        }
     }
 }
 

@@ -1,9 +1,8 @@
 use embedded_hal::PwmPin;
-use pac::TIM2;
+use pac::{SPI2, TIM2};
 use stm32f1xx_hal::gpio::gpioa::{PA10, PA8, PA9};
 use stm32f1xx_hal::gpio::gpiob::{PB13, PB14, PB15};
 use stm32f1xx_hal::gpio::{Alternate, Floating, IOPinSpeed, Input, Output, OutputSpeed, PushPull};
-use stm32f1xx_hal::pac::SPI2;
 use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pwm::{PwmChannel, C1, C2, C3, C4};
 use stm32f1xx_hal::spi::{self, Phase, Polarity, Spi, Spi2NoRemap};
@@ -12,7 +11,6 @@ use stm32f1xx_hal::time::U32Ext;
 use stm32f1xx_hal::timer::{Tim2NoRemap, Timer};
 
 use super::EnginePwm;
-use super::Radio;
 
 pub type RadioSck = PB13<Alternate<PushPull>>;
 pub type RadioMiso = PB14<Input<Floating>>;
@@ -24,7 +22,10 @@ pub type RadioSpi = Spi<SPI2, Spi2NoRemap, (RadioSck, RadioMiso, RadioMosi), u8>
 
 pub struct Board {
     pub engines: BluepillEnginePwm,
-    pub radio: Radio,
+    pub radio_spi: RadioSpi,
+    pub radio_cs: RadioCs,
+    pub radio_ce: RadioCe,
+    pub radio_irq: RadioIrq,
 }
 
 impl Board {
@@ -82,9 +83,14 @@ impl Board {
             clocks,
             &mut rcc.apb1,
         );
-        let radio = Radio::init(radio_spi, radio_cs, radio_ce, radio_irq);
 
-        Board { engines, radio }
+        Board {
+            engines,
+            radio_spi,
+            radio_cs,
+            radio_ce,
+            radio_irq,
+        }
     }
 }
 

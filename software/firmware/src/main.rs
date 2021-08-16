@@ -6,9 +6,13 @@ use cortex_m_semihosting::hprintln;
 use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 
-use board::{Board, EnginePwm, Radio};
+use board::{Board, EnginePwm};
+use protocol::Status;
+use radio::Radio;
 
 mod board;
+mod protocol;
+mod radio;
 
 #[rtic::app(device = crate::board::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
@@ -28,7 +32,12 @@ const APP: () = {
         let board = Board::init(ctx.core, ctx.device);
 
         let engine_pwm = board.engines;
-        let radio = board.radio;
+        let radio = Radio::init(
+            board.radio_spi,
+            board.radio_cs,
+            board.radio_ce,
+            board.radio_irq,
+        );
 
         ctx.schedule
             .radio_test(ctx.start + 48_000_000.cycles())
@@ -93,10 +102,7 @@ const APP: () = {
 
     #[task(schedule = [radio_test], resources = [engines, radio])]
     fn radio_test(ctx: radio_test::Context) {
-        let cmd = ctx
-            .resources
-            .radio
-            .send_status(&board::Status { r: 1.0, p: -1.0 });
+        let cmd = ctx.resources.radio.send_status(&Status { r: 1.0, p: -1.0 });
         match cmd {
             None => {}
             Some(cmd) => {
