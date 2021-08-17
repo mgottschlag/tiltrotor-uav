@@ -1,7 +1,7 @@
 use embedded_hal::PwmPin;
 use pac::{SPI2, TIM2};
-use stm32f1xx_hal::gpio::gpioa::{PA10, PA8, PA9};
-use stm32f1xx_hal::gpio::gpiob::{PB13, PB14, PB15};
+use stm32f1xx_hal::gpio::gpioa::{PA8, PA9};
+use stm32f1xx_hal::gpio::gpiob::{PB12, PB13, PB14, PB15};
 use stm32f1xx_hal::gpio::{Alternate, Floating, IOPinSpeed, Input, Output, OutputSpeed, PushPull};
 use stm32f1xx_hal::prelude::*;
 use stm32f1xx_hal::pwm::{PwmChannel, C1, C2, C3, C4};
@@ -17,7 +17,7 @@ pub type RadioMiso = PB14<Input<Floating>>;
 pub type RadioMosi = PB15<Alternate<PushPull>>;
 pub type RadioCs = PA8<Output<PushPull>>;
 pub type RadioCe = PA9<Output<PushPull>>;
-pub type RadioIrq = PA10<Output<PushPull>>;
+pub type RadioIrq = PB12<Output<PushPull>>;
 pub type RadioSpi = Spi<SPI2, Spi2NoRemap, (RadioSck, RadioMiso, RadioMosi), u8>;
 
 pub struct Board {
@@ -61,14 +61,14 @@ impl Board {
         // radio
         let mut radio_cs = gpioa.pa8.into_push_pull_output(&mut gpioa.crh);
         let mut radio_ce = gpioa.pa9.into_push_pull_output(&mut gpioa.crh);
-        let mut radio_irq = gpioa.pa10.into_push_pull_output(&mut gpioa.crh);
+        let mut radio_irq = gpiob.pb12.into_push_pull_output(&mut gpiob.crh);
         let mut radio_sck = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
         let radio_miso = gpiob.pb14.into_floating_input(&mut gpiob.crh);
         let mut radio_mosi = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
 
         radio_cs.set_speed(&mut gpioa.crh, IOPinSpeed::Mhz50);
         radio_ce.set_speed(&mut gpioa.crh, IOPinSpeed::Mhz50);
-        radio_irq.set_speed(&mut gpioa.crh, IOPinSpeed::Mhz50);
+        radio_irq.set_speed(&mut gpiob.crh, IOPinSpeed::Mhz50);
         radio_sck.set_speed(&mut gpiob.crh, IOPinSpeed::Mhz50);
         radio_mosi.set_speed(&mut gpiob.crh, IOPinSpeed::Mhz50);
 
