@@ -91,7 +91,7 @@ const APP: () = {
 
         let max_duty = engines.engine_pwm.get_max_duty() as u32;
         let mut duty = [0; 4];
-        // We want between 1-2ms of each 50ms PWM period.
+        // We want between 1-2ms of each 20ms PWM period.
         duty[engines.current_engine] =
             (max_duty / 20 + max_duty * engines.engine_speed / 2000) as u16;
         engines.engine_pwm.set_duty(duty);
