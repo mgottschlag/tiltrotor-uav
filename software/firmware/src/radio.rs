@@ -68,6 +68,6 @@ impl Radio {
             }
         }
 
-        return None;
+        None
     }
 }
