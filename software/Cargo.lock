@@ -24,6 +24,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-polyfill"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a93ba5d6053837dbb76fd0ae26fd4f0c1859a008a783b0ce072b797c07f0f27"
+dependencies = [
+ "cortex-m 0.7.3",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -148,7 +157,7 @@ dependencies = [
  "cortex-m 0.6.7",
  "cortex-m-rt",
  "cortex-m-rtic-macros",
- "heapless",
+ "heapless 0.6.1",
  "rtic-core",
  "version_check",
 ]
@@ -196,10 +205,11 @@ dependencies = [
 [[package]]
 name = "embedded-nrf24l01"
 version = "0.2.0"
-source = "git+https://github.com/astro/embedded-nrf24l01.git#aef14937dd6254a3d6e682e9a8b0fea8f9fc3a07"
+source = "git+https://github.com/ne0h/embedded-nrf24l01?branch=ack-payload#1e0a61601906bcb8d91c73a44e3ac236c07ea5b6"
 dependencies = [
  "bitfield",
  "embedded-hal",
+ "heapless 0.7.4",
  "nb 0.1.3",
 ]
 
@@ -213,9 +223,12 @@ dependencies = [
  "cortex-m-semihosting",
  "embedded-hal",
  "embedded-nrf24l01",
+ "heapless 0.7.4",
  "nb 1.0.0",
  "nrf52840-hal",
  "panic-semihosting",
+ "serde",
+ "serde_cbor",
  "stm32f1xx-hal",
  "stm32f4xx-hal",
 ]
@@ -276,6 +289,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -289,7 +311,18 @@ checksum = "634bd4d29cbf24424d0a4bfcbf80c6960129dc24424752a7d1d1390607023422"
 dependencies = [
  "as-slice",
  "generic-array 0.14.4",
- "hash32",
+ "hash32 0.1.1",
+ "stable_deref_trait",
+]
+
+[[package]]
+name = "heapless"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "767c746c1943728fb6f2cdb24b2cbe292dd4d6976640758060adf4bb9855a7ca"
+dependencies = [
+ "atomic-polyfill",
+ "hash32 0.2.1",
  "stable_deref_trait",
 ]
 
@@ -488,6 +521,37 @@ name = "semver-parser"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
+
+[[package]]
+name = "serde"
+version = "1.0.127"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f03b9878abf6d14e6779d3f24f07b2cfa90352cfec4acc5aab8f1ac7f146fae8"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_cbor"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7081ed758ec726a6ed8ee7e92f5d3f6e6f8c3901b1f972e3a4a2f2599fad14f"
+dependencies = [
+ "byteorder",
+ "half",
+ "serde",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.127"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a024926d3432516606328597e0f224a51355a493b49fdd67e9209187cbe55ecc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "stable_deref_trait"

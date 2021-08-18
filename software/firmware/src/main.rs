@@ -7,16 +7,21 @@ use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 
 use board::{Board, EnginePwm};
+use protocol::Status;
+use radio::Radio;
 
 mod board;
+mod protocol;
+mod radio;
 
 #[rtic::app(device = crate::board::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
         engines: Engines,
+        radio: Radio,
     }
 
-    #[init(schedule = [engine_test])]
+    #[init(schedule = [radio_test])]
     fn init(mut ctx: init::Context) -> init::LateResources {
         // Initialize (enable) the monotonic timer (CYCCNT)
         ctx.core.DCB.enable_trace();
@@ -27,9 +32,15 @@ const APP: () = {
         let board = Board::init(ctx.core, ctx.device);
 
         let engine_pwm = board.engines;
+        let radio = Radio::init(
+            board.radio_spi,
+            board.radio_cs,
+            board.radio_ce,
+            board.radio_irq,
+        );
 
         ctx.schedule
-            .engine_test(ctx.start + 48_000_000.cycles())
+            .radio_test(ctx.start + 48_000_000.cycles())
             .unwrap();
 
         init::LateResources {
@@ -38,6 +49,7 @@ const APP: () = {
                 engine_speed: 0,
                 current_engine: 0,
             },
+            radio,
         }
     }
     #[task(schedule = [calibration2], resources = [engines])]
@@ -85,6 +97,27 @@ const APP: () = {
         engines.engine_pwm.set_duty(duty);
         ctx.schedule
             .engine_test(ctx.scheduled + 48_000_000.cycles())
+            .unwrap();
+    }
+
+    #[task(schedule = [radio_test], resources = [engines, radio])]
+    fn radio_test(ctx: radio_test::Context) {
+        let cmd = ctx.resources.radio.send_status(&Status { r: 1.0, p: -1.0 });
+        match cmd {
+            None => {}
+            Some(cmd) => {
+                let max_duty = ctx.resources.engines.engine_pwm.get_max_duty() as u32;
+                let mut duty = [0; 4];
+                for i in 0..4 {
+                    duty[i] = (max_duty / 20 + max_duty / 20 * cmd.e[i] as u32 / 256) as u16;
+                    // hprintln!("{}: {} -> {}", i, cmd.e[i], duty[i]).ok();
+                }
+                ctx.resources.engines.engine_pwm.set_duty(duty);
+            }
+        };
+
+        ctx.schedule
+            .radio_test(ctx.scheduled + 48_000_000.cycles())
             .unwrap();
     }
 
