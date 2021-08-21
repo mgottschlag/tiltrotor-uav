@@ -422,6 +422,14 @@
     [
       "035be36c-3be5-4834-b928-6ed73ad80857",
       "Power Management"
+    ],
+    [
+      "710bac8f-b93a-494c-bd4c-06642d1701c5",
+      "Sensors"
+    ],
+    [
+      "9e22fcca-13c3-4897-835c-f83365def6e5",
+      "MCU"
     ]
   ],
   "text_variables": {}
