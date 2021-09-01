@@ -444,13 +444,13 @@
     (property "Value" "Servo3" (id 1) (at 236.22 126.9999 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal" (id 2) (at 233.68 125.73 0)
+    (property "Footprint" "Connector_Molex:Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical" (id 2) (at 233.68 125.73 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 233.68 125.73 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Digikey" "455-1803-1-ND" (id 4) (at 233.68 125.73 0)
+    (property "Mouser" "538-53398-0376" (id 4) (at 233.68 125.73 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid 9cdab768-7515-4394-bf2f-1678ba23f4b8))
@@ -467,13 +467,13 @@
     (property "Value" "Servo2" (id 1) (at 237.49 113.0299 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal" (id 2) (at 234.95 111.76 0)
+    (property "Footprint" "Connector_Molex:Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical" (id 2) (at 234.95 111.76 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 234.95 111.76 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Digikey" "455-1803-1-ND" (id 4) (at 234.95 111.76 0)
+    (property "Mouser" "538-53398-0376" (id 4) (at 234.95 111.76 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid 27e11556-f7d0-4ef6-a4c8-d4ff38675487))
@@ -490,13 +490,13 @@
     (property "Value" "Servo1" (id 1) (at 238.76 99.0599 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal" (id 2) (at 236.22 97.79 0)
+    (property "Footprint" "Connector_Molex:Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical" (id 2) (at 236.22 97.79 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (id 3) (at 236.22 97.79 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (property "Digikey" "455-1803-1-ND" (id 4) (at 236.22 97.79 0)
+    (property "Mouser" "538-53398-0376" (id 4) (at 236.22 97.79 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid 13d8808d-bb3a-46f5-86d5-5c86d24073f2))
@@ -611,6 +611,12 @@
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/1ac7e783-a5d6-488a-b58f-7ded403c2e11"
       (reference "#PWR09") (unit 1) (value "GND") (footprint "")
+    )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/3b693ad6-ae4e-409b-9440-48b8e9fb9e3f"
+      (reference "#PWR010") (unit 1) (value "GND") (footprint "")
+    )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/07695178-108e-49c2-bdf0-ad1d0fdae61c"
+      (reference "#PWR011") (unit 1) (value "GND") (footprint "")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/3bc29a78-726e-4573-ba39-06a0ae6c1cba"
       (reference "#PWR0101") (unit 1) (value "+BATT") (footprint "")
@@ -733,13 +739,13 @@
       (reference "C1") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/6bb8bbfa-56a0-432f-9458-ff084f0749ca"
-      (reference "C2") (unit 1) (value "10uF") (footprint "Capacitor_SMD:C_0805_2012Metric")
+      (reference "C2") (unit 1) (value "10uF/25V") (footprint "Capacitor_SMD:C_0805_2012Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/d467ef14-0756-4925-8a34-651ec4407f84"
       (reference "C3") (unit 1) (value "3300pF") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/bfe28c25-e0b1-43da-83dc-bb1b3fea7a86"
-      (reference "C4") (unit 1) (value "1uF{slash}10V") (footprint "Capacitor_SMD:C_0402_1005Metric")
+      (reference "C4") (unit 1) (value "1uF/10V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/7bcd28c6-9bac-45b2-b23d-199615b574bc"
       (reference "C5") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
@@ -748,10 +754,10 @@
       (reference "C6") (unit 1) (value "22uF/6.3V") (footprint "Capacitor_SMD:C_0805_2012Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/9059a679-6afd-4f76-b40b-eb51b2dc1213"
-      (reference "C7") (unit 1) (value "1uF{slash}25V") (footprint "Capacitor_SMD:C_0603_1608Metric")
+      (reference "C7") (unit 1) (value "1uF/25V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/5ee6383b-2f4c-4cf6-a47e-39113cdcd8f4"
-      (reference "C8") (unit 1) (value "10uF") (footprint "Capacitor_SMD:C_0805_2012Metric")
+      (reference "C8") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/249b1d99-16cb-46ef-b9d7-96b3a9a5bff9"
       (reference "C9") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
@@ -760,7 +766,7 @@
       (reference "C10") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/49d447d1-be60-4764-8fec-2fe3e5cacd66"
-      (reference "C11") (unit 1) (value "10u/6.3V") (footprint "")
+      (reference "C11") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/d1fdd651-6acc-42e0-896b-e6080ec7547e"
       (reference "C12") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
@@ -781,10 +787,10 @@
       (reference "C17") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/052e9faa-9c7d-4b54-8e75-09642e0ad4c8"
-      (reference "C18") (unit 1) (value "10u/6.3V") (footprint "")
+      (reference "C18") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/357c3612-4632-4b55-acbf-9a3584447a9e"
-      (reference "C19") (unit 1) (value "10u/6.3V") (footprint "")
+      (reference "C19") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/4d6a0322-2e11-4535-990b-94af63a669ec"
       (reference "C20") (unit 1) (value "22uF/6.3V") (footprint "Capacitor_SMD:C_0805_2012Metric")
@@ -796,16 +802,22 @@
       (reference "C22") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/8154fd1a-9bbe-4894-86e4-bb8f0f7f1be4"
-      (reference "C23") (unit 1) (value "10uF/6.3V") (footprint "")
+      (reference "C23") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/96f641e4-90e3-4256-88fe-edeb0ca282e9"
-      (reference "C24") (unit 1) (value "10uF/6.3V") (footprint "")
+      (reference "C24") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/7423f962-9a93-409b-aa94-8330747c0348"
-      (reference "C25") (unit 1) (value "10uF/6.3V") (footprint "")
+      (reference "C25") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/bee01653-f29f-4020-a4fe-ff8147726bd3"
-      (reference "C26") (unit 1) (value "10uF/6.3V") (footprint "")
+      (reference "C26") (unit 1) (value "10uF/6.3V") (footprint "Capacitor_SMD:C_0402_1005Metric")
+    )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/0d5e2660-1334-45ff-9ea6-5e68db7e8029"
+      (reference "C27") (unit 1) (value "6.8pF") (footprint "Capacitor_SMD:C_0402_1005Metric")
+    )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/ff398742-632d-4313-94c5-84c903fd3ddb"
+      (reference "C28") (unit 1) (value "6.8pF") (footprint "Capacitor_SMD:C_0402_1005Metric")
     )
     (path "/9237dcca-ef72-492d-bd60-515e1a203656"
       (reference "H1") (unit 1) (value "MountingHole") (footprint "MountingHole:MountingHole_3.2mm_M3_ISO7380")
@@ -829,34 +841,37 @@
       (reference "J3") (unit 1) (value "ESC") (footprint "Connector_JST:JST_SH_SM06B-SRSS-TB_1x06-1MP_P1.00mm_Horizontal")
     )
     (path "/909aedfe-31fe-474b-9337-e4a7fe9b8348"
-      (reference "J4") (unit 1) (value "Servo3") (footprint "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal")
+      (reference "J4") (unit 1) (value "Servo3") (footprint "Connector_Molex:Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical")
     )
     (path "/dda5be7a-6eb3-4820-8d43-6d9f255b9443"
-      (reference "J5") (unit 1) (value "Servo2") (footprint "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal")
+      (reference "J5") (unit 1) (value "Servo2") (footprint "Connector_Molex:Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical")
     )
     (path "/70c22129-e2c3-4bc8-a1b2-40f33860168c"
-      (reference "J6") (unit 1) (value "Servo1") (footprint "Connector_JST:JST_SH_SM03B-SRSS-TB_1x03-1MP_P1.00mm_Horizontal")
+      (reference "J6") (unit 1) (value "Servo1") (footprint "Connector_Molex:Molex_PicoBlade_53398-0371_1x03-1MP_P1.25mm_Vertical")
     )
     (path "/c70f0670-26c8-4c80-a7be-f804336d6afc"
       (reference "J7") (unit 1) (value "ESC-") (footprint "TestPoint:TestPoint_Pad_4.0x4.0mm")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/e4db66af-ae61-4f7b-a2ff-36455b181dd8"
-      (reference "J8") (unit 1) (value "Micro_SD_Card_Det_CCON_CTF-11081-P") (footprint "")
+      (reference "J8") (unit 1) (value "Micro_SD_Card_Det_HYC80-TF08-XXX") (footprint "flightcontroller-footprints:HYC80-TF08-XXX")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/e90534e9-0d9f-45b3-9d45-319684d74b64"
       (reference "J9") (unit 1) (value "SWD") (footprint "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical")
     )
-    (path "/035be36c-3be5-4834-b928-6ed73ad80857/65707128-a976-4b09-9b28-18c97b6917ce"
-      (reference "L1") (unit 1) (value "3.3uH") (footprint "")
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/1bc0809e-a5fd-4513-9537-12dae769eee3"
+      (reference "J10") (unit 1) (value "USB") (footprint "flightcontroller-footprints:USB_C_Receptacle_Amphenol_12402032")
     )
-    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/89a92ec6-9899-45f3-b928-3d6721a290a9"
-      (reference "L2") (unit 1) (value "470uH") (footprint "")
+    (path "/035be36c-3be5-4834-b928-6ed73ad80857/65707128-a976-4b09-9b28-18c97b6917ce"
+      (reference "L1") (unit 1) (value "3.3uH") (footprint "flightcontroller-footprints:L_AVX_LMLP0506D")
+    )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/19344860-a4c8-4631-b3b2-2cb6117126f1"
+      (reference "L2") (unit 1) (value "600R@100MHz") (footprint "Inductor_SMD:L_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/9f76a68e-44cf-48fa-b453-6347e9b86d28"
       (reference "R1") (unit 1) (value "10k") (footprint "Resistor_SMD:R_0402_1005Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/e25c1fcd-11be-43e2-82c1-e331ba1c7c18"
-      (reference "R2") (unit 1) (value "0.001") (footprint "Resistor_SMD:R_0612_1632Metric")
+      (reference "R2") (unit 1) (value "0.001") (footprint "Resistor_SMD:R_2512_6332Metric")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/4bad37eb-422e-42f9-9501-192351851379"
       (reference "R3") (unit 1) (value "20k") (footprint "Resistor_SMD:R_0402_1005Metric")
@@ -904,16 +919,19 @@
       (reference "U4") (unit 1) (value "MIC5514-3.3") (footprint "Package_DFN_QFN:MLF-6-1EP_1.6x1.6mm_P0.5mm_EP0.5x1.26mm")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/f81b0b2d-a782-4d80-934c-01b2f4da655a"
-      (reference "U5") (unit 1) (value "BD9D322QWZ") (footprint "")
+      (reference "U5") (unit 1) (value "BD9D322QWZ") (footprint "flightcontroller-footprints:Rohm_BD9D322QWZ")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/3442f4d9-8b64-4fa4-98ca-f5ebecccdfd6"
-      (reference "U6") (unit 1) (value "GT-24-Mini") (footprint "")
+      (reference "U6") (unit 1) (value "GT-24-Mini") (footprint "flightcontroller-footprints:GT-24-Mini")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/c53a8225-4f7e-4f6c-a825-1b8bd67ff2f8"
-      (reference "U7") (unit 1) (value "Omron_2SMPB-02B") (footprint "")
+      (reference "U7") (unit 1) (value "Omron_2SMPB-02B") (footprint "flightcontroller-footprints:Omron_2SMPB")
     )
     (path "/710bac8f-b93a-494c-bd4c-06642d1701c5/8fb43a42-cc25-4ba2-b61b-38d3182cf2b7"
-      (reference "U8") (unit 1) (value "Omron_2SMPB-02B") (footprint "")
+      (reference "U8") (unit 1) (value "Omron_2SMPB-02B") (footprint "flightcontroller-footprints:Omron_2SMPB")
+    )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/c5caaff2-c3b6-4d65-a3e4-59d970c10272"
+      (reference "Y1") (unit 1) (value "24MHz") (footprint "Crystal:Crystal_SMD_2016-4Pin_2.0x1.6mm")
     )
   )
 )
