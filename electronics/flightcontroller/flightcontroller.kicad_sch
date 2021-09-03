@@ -651,11 +651,6 @@
     (uuid 94ba7b32-0f90-4cc2-9109-39acb95da02d)
   )
 
-  (text "TODO:\n- Optional GPS\n- Payload bus? UART + Power?" (at 106.68 30.48 0)
-    (effects (font (size 1.27 1.27)) (justify left bottom))
-    (uuid 4536c0c4-eab1-4c65-82c8-82289687142d)
-  )
-
   (symbol (lib_id "power:+BATT") (at 39.37 91.44 0) (unit 1)
     (in_bom yes) (on_board yes) (fields_autoplaced)
     (uuid c25d1194-6826-40f5-b7ed-f158bf3947ad)
@@ -1722,7 +1717,7 @@
       (reference "R22") (unit 1) (value "5.1k") (footprint "Resistor_SMD:R_0402_1005Metric")
     )
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/719a0b0c-6071-4ff4-af80-4a3792d2d8c0"
-      (reference "SW1") (unit 1) (value "RESET") (footprint "Button_Switch_SMD:SW_SPST_CK_KXT3")
+      (reference "SW1") (unit 1) (value "RESET") (footprint "flightcontroller-footprints:SW_SPST_PTS815")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/f0e50344-1b2a-43a9-a48f-bb9e18ff0cfb"
       (reference "U1") (unit 1) (value "DS2745U") (footprint "Package_SO:TSSOP-8_3x3mm_P0.65mm")
