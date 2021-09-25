@@ -13,7 +13,7 @@ compile_error!("No hardware platform selected.");
 #[cfg(feature = "bluepill")]
 const MEMORY: &'static [u8] = include_bytes!("linker/memory-stm32f103.x");
 #[cfg(feature = "blackpill")]
-const MEMORY: &'static [u8] = include_bytes!("linker/memory-stm32f401.x");
+const MEMORY: &'static [u8] = include_bytes!("linker/memory-stm32f411.x");
 #[cfg(feature = "feather_nrf52840")]
 const MEMORY: &'static [u8] = include_bytes!("linker/memory-nrf52840.x");
 

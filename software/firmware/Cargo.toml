@@ -19,7 +19,7 @@ panic-semihosting = "0.5.6"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_cbor = { version = "0.10", default-features = false }
 stm32f1xx-hal = { version = "0.7", features = ["stm32f103", "rt"], optional = true }
-stm32f4xx-hal = { version = "0.9", features = ["stm32f401", "rt"], optional = true }
+stm32f4xx-hal = { version = "0.9", features = ["stm32f411", "rt"], optional = true }
 
 [features]
 # Compile for a bluepill-based prototype (STM32F1).
