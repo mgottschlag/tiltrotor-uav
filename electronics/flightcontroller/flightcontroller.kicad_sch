@@ -928,7 +928,7 @@
   (symbol (lib_id "power:GND") (at 204.47 99.06 0) (unit 1)
     (in_bom yes) (on_board yes) (fields_autoplaced)
     (uuid 4fd726f9-f236-41a8-8f4f-6d7abcf13f2e)
-    (property "Reference" "#PWR?" (id 0) (at 204.47 105.41 0)
+    (property "Reference" "#PWR0157" (id 0) (at 204.47 105.41 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "GND" (id 1) (at 204.47 104.14 0))
@@ -1687,7 +1687,7 @@
       (reference "#PWR0156") (unit 1) (value "GND") (footprint "")
     )
     (path "/4fd726f9-f236-41a8-8f4f-6d7abcf13f2e"
-      (reference "#PWR?") (unit 1) (value "GND") (footprint "")
+      (reference "#PWR0157") (unit 1) (value "GND") (footprint "")
     )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/aaebbb33-6bc1-450c-a5ad-9e9ec832cc60"
       (reference "C1") (unit 1) (value "0.1uF") (footprint "Capacitor_SMD:C_0402_1005Metric")
