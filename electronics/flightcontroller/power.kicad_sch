@@ -575,7 +575,6 @@
     )
   )
 
-
   (junction (at 31.75 86.36) (diameter 0.9144) (color 0 0 0 0))
   (junction (at 31.75 93.98) (diameter 0.9144) (color 0 0 0 0))
   (junction (at 36.83 60.96) (diameter 0.9144) (color 0 0 0 0))
@@ -601,6 +600,10 @@
 
   (no_connect (at 69.85 78.74) (uuid 007eaa7b-bb49-4ea0-8de9-283f8a9a0ebd))
 
+  (wire (pts (xy 25.4 93.98) (xy 31.75 93.98))
+    (stroke (width 0) (type solid) (color 0 0 0 0))
+    (uuid dc6ace8b-bec6-4a47-a67d-2b9b4cfea460)
+  )
   (wire (pts (xy 29.21 81.28) (xy 31.75 81.28))
     (stroke (width 0) (type solid) (color 0 0 0 0))
     (uuid 80a741b4-4da4-4b16-9adf-f44c07cbdaef)
@@ -1049,6 +1052,11 @@
   (text "300mA 3.3V LDO for microcontrollers and sensors" (at 231.14 52.07 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 974a7e54-c508-48ec-beea-370ea76f695b)
+  )
+
+  (label "-BATT" (at 25.4 93.98 0)
+    (effects (font (size 1.27 1.27)) (justify left bottom))
+    (uuid 3eebbf9b-adec-4d2a-9b28-7874c7267b9a)
   )
 
   (hierarchical_label "SCL" (shape bidirectional) (at 72.39 83.82 0)
