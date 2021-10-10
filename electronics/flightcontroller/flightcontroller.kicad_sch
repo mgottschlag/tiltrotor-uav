@@ -1902,6 +1902,9 @@
     (path "/9e22fcca-13c3-4897-835c-f83365def6e5/719a0b0c-6071-4ff4-af80-4a3792d2d8c0"
       (reference "SW1") (unit 1) (value "RESET") (footprint "flightcontroller-footprints:SW_SPST_PTS815")
     )
+    (path "/9e22fcca-13c3-4897-835c-f83365def6e5/8302aede-74a4-4cdd-ab4c-67167034c130"
+      (reference "TP1") (unit 1) (value "SWO") (footprint "TestPoint:TestPoint_Pad_D2.0mm")
+    )
     (path "/035be36c-3be5-4834-b928-6ed73ad80857/f0e50344-1b2a-43a9-a48f-bb9e18ff0cfb"
       (reference "U1") (unit 1) (value "DS2745U") (footprint "Package_SO:TSSOP-8_3x3mm_P0.65mm")
     )
