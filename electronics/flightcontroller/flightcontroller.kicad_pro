@@ -69,7 +69,6 @@
         "drill_out_of_range": "error",
         "duplicate_footprints": "warning",
         "extra_footprint": "warning",
-        "footprint_type_mismatch": "error",
         "hole_clearance": "error",
         "hole_near_hole": "error",
         "invalid_outline": "error",
@@ -394,7 +393,7 @@
       }
     ],
     "meta": {
-      "version": 2
+      "version": 1
     },
     "net_colors": null
   },
