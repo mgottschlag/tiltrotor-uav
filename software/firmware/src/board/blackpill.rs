@@ -44,7 +44,6 @@ impl Board {
         let c3 = gpioa.pa2.into_alternate();
         let c4 = gpioa.pa3.into_alternate();
         let pins = (c1, c2, c3, c4);
-        //let pwm = pwm::tim5(device.TIM5, pins, clocks, 50.hz());
         let pwm = Timer::new(device.TIM5, &clocks).pwm(pins, 50.hz());
         let engines = BlackpillEnginePwm::init(pwm);
 
