@@ -222,7 +222,7 @@ version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bffa6c1454368a6aa4811ae60964c38e6996d397ff8095a8b9211b1c1f749bc"
 dependencies = [
- "cortex-m 0.6.7",
+ "cortex-m 0.7.4",
 ]
 
 [[package]]
@@ -285,6 +285,24 @@ dependencies = [
  "bytemuck",
  "half",
  "typenum",
+]
+
+[[package]]
+name = "fugit"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22e489f95411a50db661b18e072459bbdc084de522a8530e4709bef593bf3c18"
+dependencies = [
+ "gcd",
+]
+
+[[package]]
+name = "gcd"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f37978dab2ca789938a83b2f8bc1ef32db6633af9051a6cd409eff72cbaaa79a"
+dependencies = [
+ "paste",
 ]
 
 [[package]]
@@ -459,9 +477,15 @@ version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d55dedd501dfd02514646e0af4d7016ce36bc12ae177ef52056989966a1eec"
 dependencies = [
- "cortex-m 0.6.7",
+ "cortex-m 0.7.4",
  "cortex-m-semihosting",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0744126afe1a6dd7f394cb50a716dbe086cb06e255e53d8d0185d82828358fb5"
 
 [[package]]
 name = "proc-macro2"
@@ -644,28 +668,29 @@ dependencies = [
 
 [[package]]
 name = "stm32f4"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da3d56009c8f32e4f208dbea17df72484154d1040a8969b75d8c73eb7b18fe8f"
+checksum = "379f030a0586d0aa3574cb6497392142ddf125c8146b7b580b4b6b46db9d7dc9"
 dependencies = [
- "bare-metal 0.2.5",
- "cortex-m 0.6.7",
- "cortex-m-rt 0.6.14",
+ "bare-metal 1.0.0",
+ "cortex-m 0.7.4",
+ "cortex-m-rt 0.7.1",
  "vcell",
 ]
 
 [[package]]
 name = "stm32f4xx-hal"
-version = "0.9.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89b4cb13b1bb36e7381eaf8941062b1eba172542b9d4f72dc50c35c4ac6260f2"
+checksum = "a9e687d08bd5a2d188109b8c325cb09f1c9f231b2c45e46bcbb1270bf5e912a3"
 dependencies = [
  "bare-metal 1.0.0",
- "cast 0.2.7",
+ "cast 0.3.0",
  "cortex-m 0.7.4",
- "cortex-m-rt 0.6.14",
+ "cortex-m-rt 0.7.1",
  "embedded-dma",
  "embedded-hal",
+ "fugit",
  "nb 1.0.0",
  "rand_core 0.6.3",
  "rtcc",
