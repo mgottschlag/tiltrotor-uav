@@ -31,7 +31,8 @@ pub struct Board {
 impl Board {
     pub fn init(_core: rtic::Peripherals, device: pac::Peripherals) -> Board {
         let mut flash = device.FLASH.constrain();
-        let mut rcc = device.RCC.constrain();
+        let rcc = device.RCC.constrain();
+        let mut afio = device.AFIO.constrain();
 
         let clocks = rcc
             .cfgr
@@ -40,9 +41,9 @@ impl Board {
             .pclk1(24.mhz())
             .freeze(&mut flash.acr);
 
-        let mut afio = device.AFIO.constrain(&mut rcc.apb2);
-        let mut gpioa = device.GPIOA.split(&mut rcc.apb2);
-        let mut gpiob = device.GPIOB.split(&mut rcc.apb2);
+        //let mut afio = device.AFIO.constrain(&mut rcc.apb2);
+        let mut gpioa = device.GPIOA.split();
+        let mut gpiob = device.GPIOB.split();
 
         // Engine PWM:
         let c1 = gpioa.pa0.into_alternate_push_pull(&mut gpioa.crl);
@@ -50,7 +51,7 @@ impl Board {
         let c3 = gpioa.pa2.into_alternate_push_pull(&mut gpioa.crl);
         let c4 = gpioa.pa3.into_alternate_push_pull(&mut gpioa.crl);
         let pins = (c1, c2, c3, c4);
-        let pwm = Timer::tim2(device.TIM2, &clocks, &mut rcc.apb1).pwm::<Tim2NoRemap, _, _, _>(
+        let pwm = Timer::tim2(device.TIM2, &clocks).pwm::<Tim2NoRemap, _, _, _>(
             pins,
             &mut afio.mapr,
             50.hz(),
@@ -81,7 +82,6 @@ impl Board {
             },
             2.mhz(),
             clocks,
-            &mut rcc.apb1,
         );
 
         Board {
