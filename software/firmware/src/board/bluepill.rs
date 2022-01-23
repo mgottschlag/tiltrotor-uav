@@ -41,7 +41,6 @@ impl Board {
             .pclk1(24.mhz())
             .freeze(&mut flash.acr);
 
-        //let mut afio = device.AFIO.constrain(&mut rcc.apb2);
         let mut gpioa = device.GPIOA.split();
         let mut gpiob = device.GPIOB.split();
 
