@@ -9,9 +9,12 @@ jobs:
       - PROJECT=firmware
       - BOARD=blackpill
       - TARGET=thumbv7em-none-eabihf
+    - env:
+      - PROJECT=firmware
+      - BOARD=flightcontroller
+      - TARGET=thumbv7em-none-eabihf
 script:
   - |
     cd software/$PROJECT
     rustup target add $TARGET
     cargo build-$BOARD --release
-
