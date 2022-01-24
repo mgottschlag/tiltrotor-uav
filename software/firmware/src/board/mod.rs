@@ -4,6 +4,8 @@ pub use blackpill::*;
 pub use bluepill::*;
 #[cfg(feature = "feather_nrf52840")]
 pub use feather_nrf52840::*;
+#[cfg(feature = "flightcontroller")]
+pub use flightcontroller::*;
 
 #[cfg(feature = "blackpill")]
 mod blackpill;
@@ -11,6 +13,8 @@ mod blackpill;
 mod bluepill;
 #[cfg(feature = "feather_nrf52840")]
 mod feather_nrf52840;
+#[cfg(feature = "flightcontroller")]
+mod flightcontroller;
 
 pub trait EnginePwm {
     fn get_max_duty(&self) -> u16;

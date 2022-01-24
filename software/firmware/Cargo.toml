@@ -20,6 +20,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_cbor = { version = "0.10", default-features = false }
 stm32f1xx-hal = { version = "0.8.0", features = ["stm32f103", "rt"], optional = true }
 stm32f4xx-hal = { version = "0.11.1", features = ["stm32f411", "rt"], optional = true }
+stm32g4xx-hal = { git = "https://github.com/stm32-rs/stm32g4xx-hal.git", rev = "e55fd5c", features = ["stm32g431", "rt"], optional = true }
 
 [features]
 # Compile for a bluepill-based prototype (STM32F1).
@@ -28,3 +29,5 @@ bluepill = [ "stm32f1xx-hal" ]
 blackpill = [ "stm32f4xx-hal" ]
 # Compile for an NRF52840.
 feather_nrf52840 = [ "nrf52840-hal" ]
+# Compile for the flightcontroller
+flightcontroller = [ "stm32g4xx-hal" ]
