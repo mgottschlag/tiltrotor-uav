@@ -5,6 +5,7 @@ use cortex_m::peripheral::DWT;
 use cortex_m_semihosting::hprintln;
 use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
+use rtt_target::{rprintln, rtt_init_print};
 
 use board::{Board, EnginePwm};
 use protocol::Status;
@@ -23,6 +24,8 @@ const APP: () = {
 
     #[init(schedule = [radio_test])]
     fn init(mut ctx: init::Context) -> init::LateResources {
+        rtt_init_print!();
+
         // Initialize (enable) the monotonic timer (CYCCNT)
         ctx.core.DCB.enable_trace();
         // required on Cortex-M7 devices that software lock the DWT (e.g. STM32F7)
@@ -31,7 +34,10 @@ const APP: () = {
 
         let board = Board::init(ctx.core, ctx.device);
 
+        rprintln!("Setting up pwm ...");
         let engine_pwm = board.engines;
+
+        rprintln!("Setting up radio ...");
         let radio = Radio::init(
             board.radio_spi,
             board.radio_cs,
