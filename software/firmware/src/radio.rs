@@ -1,3 +1,4 @@
+#[cfg(not(feature = "flightcontroller"))]
 use core::convert::Infallible;
 use cortex_m_semihosting::hprintln;
 use embedded_nrf24l01::{self, Configuration, CrcMode, DataRate, TxMode, NRF24L01};
@@ -10,6 +11,9 @@ pub use crate::board::{RadioCe, RadioCs, RadioIrq, RadioSpi};
 use crate::protocol;
 
 pub struct Radio {
+    #[cfg(feature = "flightcontroller")]
+    tx: TxMode<NRF24L01<(), RadioCe, RadioCs, RadioSpi>>,
+    #[cfg(not(feature = "flightcontroller"))]
     tx: TxMode<NRF24L01<Infallible, RadioCe, RadioCs, RadioSpi>>,
 }
 
