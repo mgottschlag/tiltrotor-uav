@@ -3,20 +3,24 @@
 
 use cortex_m::peripheral::DWT;
 use cortex_m_semihosting::hprintln;
+use embedded_hal::blocking::delay::DelayMs;
 use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 use rtt_target::{rprintln, rtt_init_print};
 
 use board::{Board, EnginePwm, RadioInterrupt, RadioInterruptType};
+use imu::Imu;
 use radio::Radio;
 
 mod board;
+mod imu;
 mod radio;
 
 #[rtic::app(device = crate::board::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
 const APP: () = {
     struct Resources {
         engines: Engines,
+        imu: Imu,
         radio: Radio,
         interrupts: RadioInterruptType,
     }
@@ -37,6 +41,8 @@ const APP: () = {
         let interrupts = board.interrupts;
 
         rprintln!("Setting up pwm ...");
+        let imu = Imu::new(board.imu_spi, board.imu_cs, board.imu_irq, board.imu_delay);
+
         let engine_pwm = board.engines;
 
         rprintln!("Setting up radio ...");
@@ -52,6 +58,7 @@ const APP: () = {
                 engine_speed: 0,
                 current_engine: 0,
             },
+            imu,
             radio,
             interrupts,
         }

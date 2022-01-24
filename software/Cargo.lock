@@ -349,6 +349,7 @@ dependencies = [
  "embedded-hal",
  "embedded-nrf24l01",
  "heapless 0.7.9",
+ "mpu9250",
  "nb 1.0.0",
  "nrf52840-hal",
  "panic-semihosting",
@@ -792,6 +793,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9f1c5b025cda876f66ef43a113f91ebc9f4ccef34843000e0adf6ebbab84e21"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "mpu9250"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75638d99c5a3f1109ff1022c77c1f8cd4e095f8b2ab3aa8a62f61e49084a022d"
+dependencies = [
+ "bitflags",
+ "cast 0.2.7",
+ "embedded-hal",
 ]
 
 [[package]]
