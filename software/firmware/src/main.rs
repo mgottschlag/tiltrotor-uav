@@ -22,7 +22,7 @@ const APP: () = {
         radio: Radio,
     }
 
-    #[init(schedule = [radio_test])]
+    #[init]
     fn init(mut ctx: init::Context) -> init::LateResources {
         rtt_init_print!();
 
@@ -38,16 +38,13 @@ const APP: () = {
         let engine_pwm = board.engines;
 
         rprintln!("Setting up radio ...");
-        let radio = Radio::init(
-            board.radio_spi,
-            board.radio_cs,
-            board.radio_ce,
-            board.radio_irq,
-        );
+        let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce);
 
-        ctx.schedule
-            .radio_test(ctx.start + 48_000_000.cycles())
-            .unwrap();
+        rprintln!("Setting up interrupt handler ...");
+
+        /*ctx.schedule
+        .radio_test(ctx.start + 48_000_000.cycles())
+        .unwrap();*/
 
         init::LateResources {
             engines: Engines {
@@ -106,7 +103,13 @@ const APP: () = {
             .unwrap();
     }
 
-    #[task(schedule = [radio_test], resources = [engines, radio])]
+    #[task(binds = EXTI15_10, resources = [radio])]
+    fn radio_irq(ctx: radio_irq::Context) {
+        rprintln!("Radio!");
+        ctx.resources.radio.poll();
+    }
+
+    /*#[task(schedule = [radio_test], resources = [engines, radio])]
     fn radio_test(ctx: radio_test::Context) {
         let cmd = ctx.resources.radio.send_status(&Status { r: 1.0, p: -1.0 });
         match cmd {
@@ -125,7 +128,7 @@ const APP: () = {
         ctx.schedule
             .radio_test(ctx.scheduled + 48_000_000.cycles())
             .unwrap();
-    }
+    }*/
 
     #[idle]
     fn idle(_: idle::Context) -> ! {

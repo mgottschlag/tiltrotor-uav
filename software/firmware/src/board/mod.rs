@@ -20,3 +20,8 @@ pub trait EnginePwm {
     fn get_max_duty(&self) -> u16;
     fn set_duty(&mut self, duty: [u16; 4]);
 }
+
+pub trait InterruptHandler {
+    fn activate_radio_irq(&mut self);
+    fn reset_radio_irq(&mut self);
+}
