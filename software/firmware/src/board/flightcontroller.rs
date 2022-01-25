@@ -10,7 +10,7 @@ use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
 use stm32g4xx_hal::syscfg::{SysCfg, SysCfgExt};
 
-use super::{EnginePwm, InterruptHandler};
+use super::{EnginePwm, Interrupts};
 
 pub type RadioSck = PC10<Alternate<AF6>>;
 pub type RadioMiso = PC11<Alternate<AF6>>;
@@ -25,7 +25,7 @@ pub struct Board {
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
-    pub interrupts: FlightControllerInterruptHandler,
+    pub interrupts: FlightControllerInterrupts,
 }
 
 impl Board {
@@ -70,7 +70,7 @@ impl Board {
         radio_irq.make_interrupt_source(&mut syscfg);
         radio_irq.trigger_on_edge(&mut exti, SignalEdge::Falling);
 
-        let interrupts = FlightControllerInterruptHandler::init(exti, radio_irq);
+        let interrupts = FlightControllerInterrupts::init(exti, radio_irq);
 
         Board {
             engines,
@@ -82,20 +82,20 @@ impl Board {
     }
 }
 
-pub type IterruptHandlerType = FlightControllerInterruptHandler;
+pub type IterruptsType = FlightControllerInterrupts;
 
-pub struct FlightControllerInterruptHandler {
+pub struct FlightControllerInterrupts {
     exti: pac::EXTI,
     radio_irq: RadioIrq,
 }
 
-impl FlightControllerInterruptHandler {
+impl FlightControllerInterrupts {
     pub fn init(exti: pac::EXTI, radio_irq: RadioIrq) -> Self {
-        FlightControllerInterruptHandler { exti, radio_irq }
+        FlightControllerInterrupts { exti, radio_irq }
     }
 }
 
-impl InterruptHandler for FlightControllerInterruptHandler {
+impl Interrupts for FlightControllerInterrupts {
     fn activate_radio_irq(&mut self) {
         self.radio_irq.enable_interrupt(&mut self.exti);
     }

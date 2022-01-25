@@ -7,7 +7,7 @@ use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 use rtt_target::{rprintln, rtt_init_print};
 
-use board::{Board, EnginePwm};
+use board::{Board, EnginePwm, Interrupts};
 use protocol::Status;
 use radio::Radio;
 
@@ -20,6 +20,7 @@ const APP: () = {
     struct Resources {
         engines: Engines,
         radio: Radio,
+        interrupts: Interrupts,
     }
 
     #[init]
@@ -40,7 +41,8 @@ const APP: () = {
         rprintln!("Setting up radio ...");
         let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce);
 
-        rprintln!("Setting up interrupt handler ...");
+        rprintln!("Setting up interrupts ...");
+        let interrupts = board.interrupts;
 
         /*ctx.schedule
         .radio_test(ctx.start + 48_000_000.cycles())
@@ -53,6 +55,7 @@ const APP: () = {
                 current_engine: 0,
             },
             radio,
+            interrupts,
         }
     }
     #[task(schedule = [calibration2], resources = [engines])]
