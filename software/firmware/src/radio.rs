@@ -8,7 +8,7 @@ use serde_cbor::ser::SliceWrite;
 use serde_cbor::Serializer;
 use stm32g4xx_hal::prelude::InputPin;
 
-pub use crate::board::{RadioCe, RadioCs, RadioIrq, RadioSpi};
+pub use crate::board::{InterruptsType, RadioCe, RadioCs, RadioIrq, RadioSpi};
 use crate::protocol;
 
 pub struct Radio {
@@ -32,6 +32,7 @@ impl Radio {
         nrf.set_rf(&DataRate::R2Mbps, 0).unwrap();
         nrf.set_pipes_rx_enable(&[false, true, false, false, false, false])
             .unwrap();
+        nrf.set_auto_ack(&[true; 6]).unwrap();
         nrf.set_crc(CrcMode::OneByte).unwrap();
         nrf.set_pipes_rx_lengths(&[None; 6], true).unwrap();
         nrf.set_rx_addr(1, &[0xe7u8, 0xe7u8, 0xe7u8, 0xe7u8, 0xe7u8] as &[u8])
@@ -44,10 +45,9 @@ impl Radio {
             rprintln!("RX queue not empty. Truncating ...");
             while let Some(_) = rx.can_read().unwrap() {
                 let res = rx.read().unwrap();
-                rprintln!("- Red {} bytes: {:02X?}", res.len(), res.as_ref());
+                rprintln!("- Got {} bytes: {:02X?}", res.len(), res.as_ref());
             }
         }
-        //rprintln!("Radio irq is high? {}", irq.is_high().unwrap());
 
         return Radio { rx };
     }
@@ -56,7 +56,8 @@ impl Radio {
         self.rx.clear_interrupts().unwrap();
         while let Some(_) = self.rx.can_read().unwrap() {
             let res = self.rx.read().unwrap();
-            rprintln!("- Red {} bytes: {:02X?}", res.len(), res.as_ref());
+            rprintln!("- Got {} bytes: {:02X?}", res.len(), res.as_ref());
+            self.rx.send(&res.as_ref()[..res.len()], Some(1)).unwrap();
         }
     }
 

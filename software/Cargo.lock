@@ -247,7 +247,7 @@ dependencies = [
 [[package]]
 name = "embedded-nrf24l01"
 version = "0.2.0"
-source = "git+https://github.com/ne0h/embedded-nrf24l01?branch=ack-payload#1e0a61601906bcb8d91c73a44e3ac236c07ea5b6"
+source = "git+https://github.com/ne0h/embedded-nrf24l01?branch=ack-payload#6a14d464c32dcfc235c566e09fd1d58adacba5cb"
 dependencies = [
  "bitfield",
  "embedded-hal",

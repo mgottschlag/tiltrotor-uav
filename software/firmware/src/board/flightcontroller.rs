@@ -70,7 +70,8 @@ impl Board {
         radio_irq.make_interrupt_source(&mut syscfg);
         radio_irq.trigger_on_edge(&mut exti, SignalEdge::Falling);
 
-        let interrupts = FlightControllerInterrupts::init(exti, radio_irq);
+        let mut interrupts = FlightControllerInterrupts::init(exti, radio_irq);
+        interrupts.activate_radio_irq();
 
         Board {
             engines,
@@ -82,7 +83,7 @@ impl Board {
     }
 }
 
-pub type IterruptsType = FlightControllerInterrupts;
+pub type InterruptsType = FlightControllerInterrupts;
 
 pub struct FlightControllerInterrupts {
     exti: pac::EXTI,
