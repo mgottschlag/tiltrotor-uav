@@ -1,5 +1,7 @@
 .*.swp
 software/firmware/target
+software/protocol/target
+software/remote/target
 software/target
 electronics/flightcontroller/flightcontroller-backups
 fp-info-cache

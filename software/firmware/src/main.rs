@@ -8,11 +8,9 @@ use rtic::cyccnt::U32Ext as _;
 use rtt_target::{rprintln, rtt_init_print};
 
 use board::{Board, EnginePwm, Interrupts, InterruptsType};
-use protocol::Status;
 use radio::Radio;
 
 mod board;
-mod protocol;
 mod radio;
 
 #[rtic::app(device = crate::board::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
@@ -106,33 +104,25 @@ const APP: () = {
             .unwrap();
     }
 
-    #[task(binds = EXTI15_10, resources = [interrupts, radio])]
+    #[task(binds = EXTI15_10, resources = [engines, interrupts, radio])]
     fn radio_irq(ctx: radio_irq::Context) {
+        let status = protocol::Status{r: 1.0, p: 2.0};
+
         rprintln!("Radio!");
         ctx.resources.interrupts.reset_radio_irq();
-        ctx.resources.radio.poll();
-    }
-
-    /*#[task(schedule = [radio_test], resources = [engines, radio])]
-    fn radio_test(ctx: radio_test::Context) {
-        let cmd = ctx.resources.radio.send_status(&Status { r: 1.0, p: -1.0 });
-        match cmd {
+        match ctx.resources.radio.poll(&status) {
             None => {}
             Some(cmd) => {
+                rprintln!("Thrust {:?}!", cmd.thrust);
                 let max_duty = ctx.resources.engines.engine_pwm.get_max_duty() as u32;
                 let mut duty = [0; 4];
                 for i in 0..4 {
-                    duty[i] = (max_duty / 20 + max_duty / 20 * cmd.e[i] as u32 / 256) as u16;
-                    // hprintln!("{}: {} -> {}", i, cmd.e[i], duty[i]).ok();
+                    duty[i] = (max_duty / 20 + max_duty / 20 * cmd.thrust[i] as u32 / 256) as u16;
                 }
                 ctx.resources.engines.engine_pwm.set_duty(duty);
             }
-        };
-
-        ctx.schedule
-            .radio_test(ctx.scheduled + 48_000_000.cycles())
-            .unwrap();
-    }*/
+        }
+    }
 
     #[idle]
     fn idle(_: idle::Context) -> ! {

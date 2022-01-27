@@ -8,7 +8,7 @@ use stm32g4xx_hal::pwm::{ActiveHigh, ComplementaryImpossible, Pwm, C1, C2, C3, C
 use stm32g4xx_hal::rcc::Config;
 use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
-use stm32g4xx_hal::syscfg::{SysCfg, SysCfgExt};
+use stm32g4xx_hal::syscfg::SysCfgExt;
 
 use super::{EnginePwm, Interrupts};
 

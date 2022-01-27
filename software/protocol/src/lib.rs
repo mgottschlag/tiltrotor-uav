@@ -1,3 +1,5 @@
+#![no_std]
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -8,5 +10,5 @@ pub struct Status {
 
 #[derive(Serialize, Deserialize)]
 pub struct Command {
-    pub e: [u16; 4],
+    pub thrust: [u8; 4],
 }

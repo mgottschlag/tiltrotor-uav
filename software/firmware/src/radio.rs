@@ -6,10 +6,8 @@ use serde::Serialize;
 use serde_cbor::de::from_mut_slice;
 use serde_cbor::ser::SliceWrite;
 use serde_cbor::Serializer;
-use stm32g4xx_hal::prelude::InputPin;
 
 pub use crate::board::{InterruptsType, RadioCe, RadioCs, RadioIrq, RadioSpi};
-use crate::protocol;
 
 pub struct Radio {
     #[cfg(feature = "flightcontroller")]
@@ -52,50 +50,29 @@ impl Radio {
         return Radio { rx };
     }
 
-    pub fn poll(&mut self) {
+    pub fn poll(&mut self, status: &protocol::Status) -> Option<protocol::Command> {
         self.rx.clear_interrupts().unwrap();
         while let Some(_) = self.rx.can_read().unwrap() {
-            let res = self.rx.read().unwrap();
-            rprintln!("- Got {} bytes: {:02X?}", res.len(), res.as_ref());
-            self.rx.send(&res.as_ref()[..res.len()], Some(1)).unwrap();
+            // prepare response
+            let mut buf = [0u8; 32];
+            let writer = SliceWrite::new(&mut buf[..]);
+            let mut ser = Serializer::new(writer);
+            status.serialize(&mut ser).ok();
+            let writer = ser.into_inner();
+            let size = writer.bytes_written();
+
+            // read incoming packet
+            let payload = self.rx.read().unwrap();
+            rprintln!("- Got {} bytes: {:02X?}", payload.len(), payload.as_ref());
+            self.rx.send(&buf[..size], Some(1)).unwrap();
+
+            let mut payload_array = [0u8; 32];
+            payload_array[0..payload.len()].copy_from_slice(payload.as_ref());
+
+            let cmd: protocol::Command =
+                from_mut_slice(&mut payload_array[0..payload.len()]).unwrap();
+            return Some(cmd);
         }
-    }
-
-    /*pub fn send_status(&mut self, data: &protocol::Status) -> Option<protocol::Command> {
-        let mut buf = [0u8; 32];
-        let writer = SliceWrite::new(&mut buf[..]);
-        let mut ser = Serializer::new(writer);
-        data.serialize(&mut ser).ok();
-        let writer = ser.into_inner();
-        let size = writer.bytes_written();
-
-        let mut ack_payload = heapless::Vec::<u8, 32>::new();
-        self.tx.send(&buf[..size], Some(0)).unwrap();
-        loop {
-            match self.tx.poll_send(&mut ack_payload) {
-                Err(nb::Error::WouldBlock) => {}
-                Err(nb::Error::Other(_)) => {
-                    hprintln!("break").ok();
-                    break;
-                }
-                Ok(success) => {
-                    if !success {
-                        hprintln!("Failed to send").ok();
-                    } else {
-                        //hprintln!("AP: {:?}", ack_payload.len()).ok();
-                        //hprintln!("AP: {:?}", ack_payload).ok();
-                        if ack_payload.len() > 1 {
-                            let cmd: protocol::Command =
-                                from_mut_slice(&mut ack_payload[..]).unwrap();
-                            //hprintln!("AP: {:?}", cmd.e).ok();
-                            return Some(cmd);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-
         None
-    }*/
+    }
 }

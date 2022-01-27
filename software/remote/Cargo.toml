@@ -1,0 +1,16 @@
+[package]
+name = "remote"
+version = "0.1.0"
+authors = ["Mathias Gottschlag <mgottschlag@gmail.com>", "Maximilian Hess <mail@ne0h.de>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "8e4ebdd" }
+protocol = { path = "../protocol" }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_cbor = { version = "0.10", default-features = false }
+thiserror = "1.0"
+tokio = { version = "0.2", features = [ "full" ] }
