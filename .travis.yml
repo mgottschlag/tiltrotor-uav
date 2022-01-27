@@ -3,15 +3,14 @@ jobs:
   include:
     - env:
       - PROJECT=firmware
-      - BOARD=flightcontroller
+      - BOARD="-flightcontroller"
       - TARGET=thumbv7em-none-eabihf
+    - env:
+      - PROJECT=remote
+      - BOARD=""
+      - TARGET=""
 script:
   - |
-    # build flightcontroller
     cd software/$PROJECT
-    rustup target add $TARGET
-    cargo build-$BOARD --release
-    cd ..
-    # build remote control
-    cd remote
-    cargo build --release
+    [ -n "$TARGET" ] && rustup target add $TARGET
+    cargo build$BOARD --release
