@@ -12,7 +12,6 @@ script:
     rustup target add $TARGET
     cargo build-$BOARD --release
     cd ..
-
     # build remote control
     cd remote
     cargo build --release
