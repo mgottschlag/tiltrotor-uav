@@ -7,6 +7,12 @@ jobs:
       - TARGET=thumbv7em-none-eabihf
 script:
   - |
+    # build flightcontroller
     cd software/$PROJECT
     rustup target add $TARGET
     cargo build-$BOARD --release
+    cd ..
+
+    # build remote control
+    cd remote
+    cargo build --release
