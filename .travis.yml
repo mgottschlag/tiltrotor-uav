@@ -9,6 +9,9 @@ jobs:
       - PROJECT=remote
       - BOARD=""
       - TARGET=""
+before_script:
+  - |
+    sudo apt-get install libudev-dev
 script:
   - |
     cd software/$PROJECT
