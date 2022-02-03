@@ -10,7 +10,7 @@ use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
 use stm32g4xx_hal::syscfg::SysCfgExt;
 
-use super::{EnginePwm, Interrupts};
+use super::{EnginePwm, RadioInterrupt};
 
 pub type RadioSck = PC10<Alternate<AF6>>;
 pub type RadioMiso = PC11<Alternate<AF6>>;
@@ -25,7 +25,7 @@ pub struct Board {
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
-    pub interrupts: FlightControllerInterrupts,
+    pub interrupts: FlightControllerRadioInterrupt,
 }
 
 impl Board {
@@ -70,8 +70,8 @@ impl Board {
         radio_irq.make_interrupt_source(&mut syscfg);
         radio_irq.trigger_on_edge(&mut exti, SignalEdge::Falling);
 
-        let mut interrupts = FlightControllerInterrupts::init(exti, radio_irq);
-        interrupts.activate_radio_irq();
+        let mut interrupts = FlightControllerRadioInterrupt::init(exti, radio_irq);
+        interrupts.activate();
 
         Board {
             engines,
@@ -83,26 +83,26 @@ impl Board {
     }
 }
 
-pub type InterruptsType = FlightControllerInterrupts;
+pub type RadioInterruptType = FlightControllerRadioInterrupt;
 
-pub struct FlightControllerInterrupts {
+pub struct FlightControllerRadioInterrupt {
     exti: pac::EXTI,
-    radio_irq: RadioIrq,
+    irq: RadioIrq,
 }
 
-impl FlightControllerInterrupts {
-    pub fn init(exti: pac::EXTI, radio_irq: RadioIrq) -> Self {
-        FlightControllerInterrupts { exti, radio_irq }
+impl FlightControllerRadioInterrupt {
+    pub fn init(exti: pac::EXTI, irq: RadioIrq) -> Self {
+        FlightControllerRadioInterrupt { exti, irq }
     }
 }
 
-impl Interrupts for FlightControllerInterrupts {
-    fn activate_radio_irq(&mut self) {
-        self.radio_irq.enable_interrupt(&mut self.exti);
+impl RadioInterrupt for FlightControllerRadioInterrupt {
+    fn activate(&mut self) {
+        self.irq.enable_interrupt(&mut self.exti);
     }
 
-    fn reset_radio_irq(&mut self) {
-        self.radio_irq.clear_interrupt_pending_bit();
+    fn reset(&mut self) {
+        self.irq.clear_interrupt_pending_bit();
     }
 }
 

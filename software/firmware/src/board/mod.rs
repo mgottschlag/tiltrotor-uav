@@ -21,7 +21,7 @@ pub trait EnginePwm {
     fn set_duty(&mut self, duty: [u16; 4]);
 }
 
-pub trait Interrupts {
-    fn activate_radio_irq(&mut self);
-    fn reset_radio_irq(&mut self);
+pub trait RadioInterrupt {
+    fn activate(&mut self);
+    fn reset(&mut self);
 }

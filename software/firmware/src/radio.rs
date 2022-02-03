@@ -7,7 +7,7 @@ use serde_cbor::de::from_mut_slice;
 use serde_cbor::ser::SliceWrite;
 use serde_cbor::Serializer;
 
-pub use crate::board::{InterruptsType, RadioCe, RadioCs, RadioIrq, RadioSpi};
+pub use crate::board::{RadioCe, RadioCs, RadioInterruptType, RadioIrq, RadioSpi};
 
 pub struct Radio {
     #[cfg(feature = "flightcontroller")]
