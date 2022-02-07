@@ -73,11 +73,11 @@ impl Radio {
             match from_mut_slice(&mut payload_array[0..payload.len()]) {
                 Ok(Some(cmd)) => return cmd,
                 Ok(None) => {
-                    rprintln!("Failed to serialize response");
+                    rprintln!("Failed to deserialize command");
                     continue;
                 }
                 Err(err) => {
-                    rprintln!("Failed to serialize response: {:?}", err);
+                    rprintln!("Failed to deserialize command: {:?}", err);
                     continue;
                 }
             }
