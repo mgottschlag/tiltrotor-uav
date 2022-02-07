@@ -11,6 +11,7 @@ use stm32g4xx_hal::rcc::Config;
 use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
 use stm32g4xx_hal::syscfg::SysCfgExt;
+use stm32g4xx_hal::timer::{CountDownTimer, Timer};
 
 use super::{EnginePwm, RadioInterrupt};
 
@@ -28,14 +29,14 @@ pub type ImuMosi = PA7<Alternate<AF5>>;
 pub type ImuCs = PC4<Output<PushPull>>;
 pub type ImuIrq = PA4<Output<PushPull>>;
 pub type ImuSpi = Spi<SPI1, (ImuSck, ImuMiso, ImuMosi)>;
-pub type ImuDelay = DelayFromCountDownTimer<TIM1>;
+pub type ImuDelay = DelayFromCountDownTimer<CountDownTimer<TIM1>>;
 
 pub struct Board {
     pub engines: FlightControllerEnginePwm,
     pub imu_spi: ImuSpi,
     pub imu_cs: ImuCs,
     pub imu_irq: ImuIrq,
-    pub imu_delay: DelayFromCountDownTimer<TIM1>,
+    pub imu_delay: DelayFromCountDownTimer<CountDownTimer<TIM1>>,
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
@@ -45,6 +46,7 @@ pub struct Board {
 impl Board {
     pub fn init(_core: rtic::Peripherals, device: pac::Peripherals) -> Board {
         let mut rcc = device.RCC.constrain();
+        let rcc_clocks = rcc.clocks;
         let mut syscfg = device.SYSCFG.constrain();
 
         let gpioa = device.GPIOA.split(&mut rcc);
@@ -94,7 +96,8 @@ impl Board {
             2.mhz(),
             &mut clocks,
         );
-        let imu_delay = DelayFromCountDownTimer::new(device.TIM1);
+        let imu_timer = Timer::new(device.TIM1, &rcc_clocks);
+        let imu_delay = DelayFromCountDownTimer::new(imu_timer.start_count_down(1.ms()));
 
         // init interrupts and interrupt handler
         let mut exti = device.EXTI;

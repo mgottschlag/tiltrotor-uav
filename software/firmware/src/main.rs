@@ -3,7 +3,6 @@
 
 use cortex_m::peripheral::DWT;
 use cortex_m_semihosting::hprintln;
-use embedded_hal::blocking::delay::DelayMs;
 use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 use rtt_target::{rprintln, rtt_init_print};
@@ -35,18 +34,24 @@ const APP: () = {
         DWT::unlock();
         ctx.core.DWT.enable_cycle_counter();
 
-        let board = Board::init(ctx.core, ctx.device);
+        let mut board = Board::init(ctx.core, ctx.device);
 
         rprintln!("Setting up interrupts ...");
         let interrupts = board.interrupts;
 
-        rprintln!("Setting up pwm ...");
-        let imu = Imu::new(board.imu_spi, board.imu_cs, board.imu_irq, board.imu_delay);
-
-        let engine_pwm = board.engines;
-
         rprintln!("Setting up radio ...");
         let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce);
+
+        rprintln!("Setting up imu ...");
+        let imu = Imu::new(
+            board.imu_spi,
+            board.imu_cs,
+            board.imu_irq,
+            &mut board.imu_delay,
+        );
+
+        rprintln!("Setting up pwm ...");
+        let engine_pwm = board.engines;
 
         /*ctx.schedule
         .radio_test(ctx.start + 48_000_000.cycles())
