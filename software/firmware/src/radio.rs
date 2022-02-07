@@ -38,6 +38,7 @@ impl Radio {
 
         let mut rx = nrf.rx().unwrap();
 
+        // clear message queue to force radio to disable interrupt
         let is_empty = rx.is_empty().unwrap();
         if !is_empty {
             rprintln!("RX queue not empty. Truncating ...");
