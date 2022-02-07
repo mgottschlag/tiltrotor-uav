@@ -26,14 +26,9 @@ async fn main() {
         NRF24L01::open_default(config, &opts.device.into_os_string().into_string().unwrap())
             .await
             .expect("could not open device");
+    // data is received via ACK payloads -> no need to set any receive addresses
     nrf24l01
-        .set_receive_addr(
-            Some((&[0xb3u8, 0xb3u8, 0xb3u8, 0xb3u8, 0x00u8] as &[u8]).into()),
-            None,
-            None,
-            None,
-            None,
-        )
+        .set_receive_addr(None, None, None, None, None)
         .await
         .expect("could not set receive address");
     let mut receive = nrf24l01.receive().await.expect("could not start receiving");
@@ -73,7 +68,7 @@ async fn main() {
                 };*/
                 // TODO MAX_PAYLOAD_LEN warning
 
-                match receive.send((&[0xe7u8, 0xe7u8, 0xe7u8, 0xe7u8, 0xe7u8][..]).into(), &buf[0..size]).await {
+                match receive.send((&[0x44u8, 0x72u8, 0x6fu8, 0x6eu8, 0x65u8][..]).into(), &buf[0..size]).await {
                     Ok(Some(ack_payload)) => {
                         let mut data = ack_payload.payload;
                         let size = data.len();

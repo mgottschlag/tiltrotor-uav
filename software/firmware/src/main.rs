@@ -56,6 +56,7 @@ const APP: () = {
             interrupts,
         }
     }
+
     #[task(schedule = [calibration2], resources = [engines])]
     fn calibration1(mut ctx: calibration1::Context) {
         let engines = &mut ctx.resources.engines;
@@ -110,6 +111,8 @@ const APP: () = {
 
         rprintln!("Radio!");
         ctx.resources.interrupts.reset();
+        // status is set as ACK payload for the next icoming command
+        // TODO: consider two-way protocol to return status as reponse for most recent incoming command
         match ctx.resources.radio.poll(&status) {
             None => {}
             Some(cmd) => {

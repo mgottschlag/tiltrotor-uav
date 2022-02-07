@@ -33,7 +33,7 @@ impl Radio {
         nrf.set_auto_ack(&[true; 6]).unwrap();
         nrf.set_crc(CrcMode::OneByte).unwrap();
         nrf.set_pipes_rx_lengths(&[None; 6], true).unwrap();
-        nrf.set_rx_addr(1, &[0xe7u8, 0xe7u8, 0xe7u8, 0xe7u8, 0xe7u8] as &[u8])
+        nrf.set_rx_addr(1, &[0x44u8, 0x72u8, 0x6fu8, 0x6eu8, 0x65u8] as &[u8])
             .unwrap();
 
         let mut rx = nrf.rx().unwrap();
@@ -69,9 +69,17 @@ impl Radio {
             let mut payload_array = [0u8; 32];
             payload_array[0..payload.len()].copy_from_slice(payload.as_ref());
 
-            let cmd: protocol::Command =
-                from_mut_slice(&mut payload_array[0..payload.len()]).unwrap();
-            return Some(cmd);
+            match from_mut_slice(&mut payload_array[0..payload.len()]) {
+                Ok(Some(cmd)) => return cmd,
+                Ok(None) => {
+                    rprintln!("Failed to serialize response");
+                    continue;
+                }
+                Err(err) => {
+                    rprintln!("Failed to serialize response: {:?}", err);
+                    continue;
+                }
+            }
         }
         None
     }
