@@ -12,5 +12,6 @@ nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.g
 protocol = { path = "../protocol" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_cbor = { version = "0.10", default-features = false }
+structopt = "0.3.26"
 thiserror = "1.0"
 tokio = { version = "0.2", features = [ "full" ] }

@@ -3,19 +3,17 @@ use serde::ser::Serialize;
 use serde_cbor::de::from_mut_slice;
 use serde_cbor::ser::SliceWrite;
 use serde_cbor::Serializer;
-use std::env;
+use std::path::PathBuf;
+use structopt::StructOpt;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 
-use nrf24l01_stick_driver::{Configuration, CrcMode, DataRate, DEFAULT_TTY, NRF24L01};
+use nrf24l01_stick_driver::{Configuration, CrcMode, DataRate, NRF24L01};
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = env::args().collect();
-    let mut tty = DEFAULT_TTY;
-    if args.len() >= 1 {
-        tty = &args[1];
-    }
+    let opts = Opts::from_args();
+    println!("{:#?}", opts);
 
     let mut config = Configuration::default();
     config.channel = 0x32;
@@ -24,9 +22,10 @@ async fn main() {
     config.crc = Some(CrcMode::OneByte);
     config.auto_retransmit_delay_count = Some((250, 3));
 
-    let mut nrf24l01 = NRF24L01::open_default(config, tty)
-        .await
-        .expect("could not open device");
+    let mut nrf24l01 =
+        NRF24L01::open_default(config, &opts.device.into_os_string().into_string().unwrap())
+            .await
+            .expect("could not open device");
     nrf24l01
         .set_receive_addr(
             Some((&[0xb3u8, 0xb3u8, 0xb3u8, 0xb3u8, 0x00u8] as &[u8]).into()),
@@ -94,4 +93,16 @@ async fn main() {
 
         }
     }
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "basic")]
+struct Opts {
+    #[structopt(
+        short = "d",
+        long,
+        parse(from_os_str),
+        default_value = "/dev/ttyUSB_nrf24l01"
+    )]
+    device: PathBuf,
 }
