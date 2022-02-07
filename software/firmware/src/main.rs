@@ -7,12 +7,10 @@ use panic_semihosting as _;
 use rtic::cyccnt::U32Ext as _;
 use rtt_target::{rprintln, rtt_init_print};
 
-use board::{Board, EnginePwm};
-use protocol::Status;
+use board::{Board, EnginePwm, RadioInterrupt, RadioInterruptType};
 use radio::Radio;
 
 mod board;
-mod protocol;
 mod radio;
 
 #[rtic::app(device = crate::board::pac, peripherals = true, monotonic = rtic::cyccnt::CYCCNT)]
@@ -20,9 +18,10 @@ const APP: () = {
     struct Resources {
         engines: Engines,
         radio: Radio,
+        interrupts: RadioInterruptType,
     }
 
-    #[init(schedule = [radio_test])]
+    #[init]
     fn init(mut ctx: init::Context) -> init::LateResources {
         rtt_init_print!();
 
@@ -34,20 +33,18 @@ const APP: () = {
 
         let board = Board::init(ctx.core, ctx.device);
 
+        rprintln!("Setting up interrupts ...");
+        let interrupts = board.interrupts;
+
         rprintln!("Setting up pwm ...");
         let engine_pwm = board.engines;
 
         rprintln!("Setting up radio ...");
-        let radio = Radio::init(
-            board.radio_spi,
-            board.radio_cs,
-            board.radio_ce,
-            board.radio_irq,
-        );
+        let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce);
 
-        ctx.schedule
-            .radio_test(ctx.start + 48_000_000.cycles())
-            .unwrap();
+        /*ctx.schedule
+        .radio_test(ctx.start + 48_000_000.cycles())
+        .unwrap();*/
 
         init::LateResources {
             engines: Engines {
@@ -56,8 +53,10 @@ const APP: () = {
                 current_engine: 0,
             },
             radio,
+            interrupts,
         }
     }
+
     #[task(schedule = [calibration2], resources = [engines])]
     fn calibration1(mut ctx: calibration1::Context) {
         let engines = &mut ctx.resources.engines;
@@ -106,25 +105,26 @@ const APP: () = {
             .unwrap();
     }
 
-    #[task(schedule = [radio_test], resources = [engines, radio])]
-    fn radio_test(ctx: radio_test::Context) {
-        let cmd = ctx.resources.radio.send_status(&Status { r: 1.0, p: -1.0 });
-        match cmd {
+    #[task(binds = EXTI15_10, resources = [engines, interrupts, radio])]
+    fn radio_irq(ctx: radio_irq::Context) {
+        let status = protocol::Status { r: 1.0, p: 2.0 };
+
+        rprintln!("Radio!");
+        ctx.resources.interrupts.reset();
+        // status is set as ACK payload for the next icoming command
+        // TODO: consider two-way protocol to return status as reponse for most recent incoming command
+        match ctx.resources.radio.poll(&status) {
             None => {}
             Some(cmd) => {
+                rprintln!("Thrust {:?}!", cmd.thrust);
                 let max_duty = ctx.resources.engines.engine_pwm.get_max_duty() as u32;
                 let mut duty = [0; 4];
                 for i in 0..4 {
-                    duty[i] = (max_duty / 20 + max_duty / 20 * cmd.e[i] as u32 / 256) as u16;
-                    // hprintln!("{}: {} -> {}", i, cmd.e[i], duty[i]).ok();
+                    duty[i] = (max_duty / 20 + max_duty / 20 * cmd.thrust[i] as u32 / 256) as u16;
                 }
                 ctx.resources.engines.engine_pwm.set_duty(duty);
             }
-        };
-
-        ctx.schedule
-            .radio_test(ctx.scheduled + 48_000_000.cycles())
-            .unwrap();
+        }
     }
 
     #[idle]

@@ -1,21 +1,23 @@
 use pac::SPI3;
 use stm32g4xx_hal::gpio::gpiob::PB5;
 use stm32g4xx_hal::gpio::gpioc::{PC10, PC11, PC13, PC14, PC6};
-use stm32g4xx_hal::gpio::{Alternate, Output, PushPull, AF6};
+use stm32g4xx_hal::gpio::{Alternate, Floating, Input, Output, PushPull, AF6};
+use stm32g4xx_hal::gpio::{ExtiPin, SignalEdge};
 use stm32g4xx_hal::prelude::*;
 use stm32g4xx_hal::pwm::{ActiveHigh, ComplementaryImpossible, Pwm, C1, C2, C3, C4};
 use stm32g4xx_hal::rcc::Config;
 use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
+use stm32g4xx_hal::syscfg::SysCfgExt;
 
-use super::EnginePwm;
+use super::{EnginePwm, RadioInterrupt};
 
 pub type RadioSck = PC10<Alternate<AF6>>;
 pub type RadioMiso = PC11<Alternate<AF6>>;
 pub type RadioMosi = PB5<Alternate<AF6>>;
 pub type RadioCs = PC6<Output<PushPull>>;
 pub type RadioCe = PC13<Output<PushPull>>;
-pub type RadioIrq = PC14<Output<PushPull>>;
+pub type RadioIrq = PC14<Input<Floating>>;
 pub type RadioSpi = Spi<SPI3, (RadioSck, RadioMiso, RadioMosi)>;
 
 pub struct Board {
@@ -23,12 +25,13 @@ pub struct Board {
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
-    pub radio_irq: RadioIrq,
+    pub interrupts: FlightControllerRadioInterrupt,
 }
 
 impl Board {
     pub fn init(_core: rtic::Peripherals, device: pac::Peripherals) -> Board {
         let mut rcc = device.RCC.constrain();
+        let mut syscfg = device.SYSCFG.constrain();
 
         let gpioa = device.GPIOA.split(&mut rcc);
         let gpiob = device.GPIOB.split(&mut rcc);
@@ -51,7 +54,7 @@ impl Board {
         let radio_mosi = gpiob.pb5.into_alternate();
         let radio_cs = gpioc.pc6.into_push_pull_output();
         let radio_ce = gpioc.pc13.into_push_pull_output();
-        let radio_irq = gpioc.pc14.into_push_pull_output();
+        let mut radio_irq = gpioc.pc14.into_floating_input();
         let radio_spi = device.SPI3.spi(
             (radio_sck, radio_miso, radio_mosi),
             Mode {
@@ -62,13 +65,44 @@ impl Board {
             &mut clocks,
         );
 
+        // init interrupts and interrupt handler
+        let mut exti = device.EXTI;
+        radio_irq.make_interrupt_source(&mut syscfg);
+        radio_irq.trigger_on_edge(&mut exti, SignalEdge::Falling);
+
+        let mut interrupts = FlightControllerRadioInterrupt::init(exti, radio_irq);
+        interrupts.activate();
+
         Board {
             engines,
             radio_spi,
             radio_cs,
             radio_ce,
-            radio_irq,
+            interrupts,
         }
+    }
+}
+
+pub type RadioInterruptType = FlightControllerRadioInterrupt;
+
+pub struct FlightControllerRadioInterrupt {
+    exti: pac::EXTI,
+    irq: RadioIrq,
+}
+
+impl FlightControllerRadioInterrupt {
+    pub fn init(exti: pac::EXTI, irq: RadioIrq) -> Self {
+        FlightControllerRadioInterrupt { exti, irq }
+    }
+}
+
+impl RadioInterrupt for FlightControllerRadioInterrupt {
+    fn activate(&mut self) {
+        self.irq.enable_interrupt(&mut self.exti);
+    }
+
+    fn reset(&mut self) {
+        self.irq.clear_interrupt_pending_bit();
     }
 }
 

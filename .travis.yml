@@ -3,10 +3,17 @@ jobs:
   include:
     - env:
       - PROJECT=firmware
-      - BOARD=flightcontroller
+      - BOARD="-flightcontroller"
       - TARGET=thumbv7em-none-eabihf
+    - env:
+      - PROJECT=remote
+      - BOARD=""
+      - TARGET=""
+before_script:
+  - |
+    sudo apt-get install libudev-dev
 script:
   - |
     cd software/$PROJECT
-    rustup target add $TARGET
-    cargo build-$BOARD --release
+    [ -n "$TARGET" ] && rustup target add $TARGET
+    cargo build$BOARD --release

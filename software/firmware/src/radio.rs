@@ -1,77 +1,87 @@
 #[cfg(not(feature = "flightcontroller"))]
 use core::convert::Infallible;
-use cortex_m_semihosting::hprintln;
-use embedded_nrf24l01::{self, Configuration, CrcMode, DataRate, TxMode, NRF24L01};
+use embedded_nrf24l01::{self, Configuration, CrcMode, DataRate, RxMode, NRF24L01};
+use rtt_target::rprintln;
 use serde::Serialize;
 use serde_cbor::de::from_mut_slice;
 use serde_cbor::ser::SliceWrite;
 use serde_cbor::Serializer;
 
-pub use crate::board::{RadioCe, RadioCs, RadioIrq, RadioSpi};
-use crate::protocol;
+pub use crate::board::{RadioCe, RadioCs, RadioInterruptType, RadioIrq, RadioSpi};
 
 pub struct Radio {
     #[cfg(feature = "flightcontroller")]
-    tx: TxMode<NRF24L01<(), RadioCe, RadioCs, RadioSpi>>,
+    rx: RxMode<NRF24L01<(), RadioCe, RadioCs, RadioSpi>>,
     #[cfg(not(feature = "flightcontroller"))]
-    tx: TxMode<NRF24L01<Infallible, RadioCe, RadioCs, RadioSpi>>,
+    rx: RxMode<NRF24L01<Infallible, RadioCe, RadioCs, RadioSpi>>,
 }
 
 impl Radio {
-    pub fn init(spi: RadioSpi, cs: RadioCs, ce: RadioCe, _irq: RadioIrq) -> Self {
+    pub fn init(spi: RadioSpi, cs: RadioCs, ce: RadioCe) -> Self {
         let mut nrf = NRF24L01::new(ce, cs, spi).unwrap();
-        nrf.set_frequency(13).unwrap();
+
+        // configure radio
+        // - channel/frequency = 0x32 (50)
+        // - data rate = 2Mbps
+        // - Checksum length = 1 byte
+
+        nrf.set_frequency(0x32).unwrap();
         nrf.set_auto_retransmit(6, 15).unwrap();
         nrf.set_rf(&DataRate::R2Mbps, 0).unwrap();
-        nrf.set_pipes_rx_enable(&[true, true, false, false, false, false])
+        nrf.set_pipes_rx_enable(&[false, true, false, false, false, false])
             .unwrap();
         nrf.set_auto_ack(&[true; 6]).unwrap();
         nrf.set_crc(CrcMode::OneByte).unwrap();
         nrf.set_pipes_rx_lengths(&[None; 6], true).unwrap();
-        // TODO: set proper addresses
-        nrf.set_rx_addr(0, &b"aaaaa"[..]).unwrap();
-        nrf.set_rx_addr(1, &b"aaaab"[..]).unwrap();
-        nrf.set_tx_addr(&b"aaaaa"[..]).unwrap();
+        nrf.set_rx_addr(1, &[0x44u8, 0x72u8, 0x6fu8, 0x6eu8, 0x65u8] as &[u8])
+            .unwrap();
 
-        let tx = nrf.tx().unwrap();
-        return Radio { tx };
-    }
+        let mut rx = nrf.rx().unwrap();
 
-    pub fn send_status(&mut self, data: &protocol::Status) -> Option<protocol::Command> {
-        let mut buf = [0u8; 32];
-        let writer = SliceWrite::new(&mut buf[..]);
-        let mut ser = Serializer::new(writer);
-        data.serialize(&mut ser).ok();
-        let writer = ser.into_inner();
-        let size = writer.bytes_written();
-
-        let mut ack_payload = heapless::Vec::<u8, 32>::new();
-        self.tx.send(&buf[..size], Some(0)).unwrap();
-        loop {
-            match self.tx.poll_send(&mut ack_payload) {
-                Err(nb::Error::WouldBlock) => {}
-                Err(nb::Error::Other(_)) => {
-                    hprintln!("break").ok();
-                    break;
-                }
-                Ok(success) => {
-                    if !success {
-                        hprintln!("Failed to send").ok();
-                    } else {
-                        //hprintln!("AP: {:?}", ack_payload.len()).ok();
-                        //hprintln!("AP: {:?}", ack_payload).ok();
-                        if ack_payload.len() > 1 {
-                            let cmd: protocol::Command =
-                                from_mut_slice(&mut ack_payload[..]).unwrap();
-                            //hprintln!("AP: {:?}", cmd.e).ok();
-                            return Some(cmd);
-                        }
-                    }
-                    break;
-                }
+        // clear message queue to force radio to disable interrupt
+        let is_empty = rx.is_empty().unwrap();
+        if !is_empty {
+            rprintln!("RX queue not empty. Truncating ...");
+            while let Some(_) = rx.can_read().unwrap() {
+                let res = rx.read().unwrap();
+                rprintln!("- Got {} bytes: {:02X?}", res.len(), res.as_ref());
             }
         }
 
+        return Radio { rx };
+    }
+
+    pub fn poll(&mut self, status: &protocol::Status) -> Option<protocol::Command> {
+        self.rx.clear_interrupts().unwrap();
+        while let Some(_) = self.rx.can_read().unwrap() {
+            // prepare response
+            let mut buf = [0u8; 32];
+            let writer = SliceWrite::new(&mut buf[..]);
+            let mut ser = Serializer::new(writer);
+            status.serialize(&mut ser).ok();
+            let writer = ser.into_inner();
+            let size = writer.bytes_written();
+
+            // read incoming packet
+            let payload = self.rx.read().unwrap();
+            rprintln!("- Got {} bytes: {:02X?}", payload.len(), payload.as_ref());
+            self.rx.send(&buf[..size], Some(1)).unwrap();
+
+            let mut payload_array = [0u8; 32];
+            payload_array[0..payload.len()].copy_from_slice(payload.as_ref());
+
+            match from_mut_slice(&mut payload_array[0..payload.len()]) {
+                Ok(Some(cmd)) => return cmd,
+                Ok(None) => {
+                    rprintln!("Failed to deserialize command");
+                    continue;
+                }
+                Err(err) => {
+                    rprintln!("Failed to deserialize command: {:?}", err);
+                    continue;
+                }
+            }
+        }
         None
     }
 }
