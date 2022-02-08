@@ -11,10 +11,11 @@ mod board;
 mod imu;
 mod radio;
 
-#[rtic::app(device = crate::board::pac, peripherals = true)]
+#[rtic::app(device = crate::board::pac, peripherals = true, dispatchers = [USART1])]
 mod app {
 
     use rtt_target::{rprintln, rtt_init_print};
+    use systick_monotonic::*;
 
     use crate::board::{EnginePwm, RadioInterrupt};
     use crate::Board;
@@ -33,6 +34,9 @@ mod app {
         radio: Radio,
         interrupts: RadioInterruptType,
     }
+
+    #[monotonic(binds = SysTick, default = true)]
+    type MyMono = Systick<100>;
 
     #[init]
     fn init(mut ctx: init::Context) -> (Shared, Local, init::Monotonics) {
@@ -61,6 +65,8 @@ mod app {
             &mut board.imu_delay,
         );
 
+        let mono: Systick<100> = Systick::new(board.syst, 16_000_000);
+        update::spawn_after(1.secs()).unwrap();
         (
             Shared {},
             Local {
@@ -73,8 +79,15 @@ mod app {
                 radio,
                 interrupts,
             },
-            init::Monotonics(),
+            init::Monotonics(mono),
         )
+    }
+
+    #[task(local = [imu])]
+    fn update(ctx: update::Context) {
+        let data = ctx.local.imu.get_rotations();
+        rprintln!("{} {}", data.pitch, data.roll);
+        update::spawn_after(1.secs()).unwrap();
     }
 
     #[task(binds = EXTI15_10, local = [engines, interrupts, radio])]

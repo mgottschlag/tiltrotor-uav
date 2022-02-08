@@ -1,3 +1,4 @@
+use libm::{atan2f, powf, sqrtf};
 use mpu9250::{ImuMeasurements, Mpu9250, SpiDevice};
 use rtt_target::rprintln;
 
@@ -20,12 +21,15 @@ impl Imu {
     }
 
     pub fn get_rotations(&mut self) -> Rotations {
-        let all: ImuMeasurements<[f32; 3]> = self.mpu.all().unwrap();
-        rprintln!("{:?}", all);
+        let accel: [f32; 3] = self.mpu.accel().unwrap();
 
         Rotations {
-            pitch: 0.0,
-            roll: 0.0,
+            pitch: atan2f(accel[1], sqrtf(powf(accel[0], 2.) + powf(accel[2], 2.))) * 180.0
+                / 3.14159
+                * (-1.0),
+            roll: atan2f(-accel[0], sqrtf(powf(accel[1], 2.) + powf(accel[2], 2.))) * 180.0
+                / 3.14159
+                * (1.0),
             yaw: 0.0,
         }
     }

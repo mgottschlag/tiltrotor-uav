@@ -31,7 +31,10 @@ pub type ImuIrq = PA4<Output<PushPull>>;
 pub type ImuSpi = Spi<SPI1, (ImuSck, ImuMiso, ImuMosi)>;
 pub type ImuDelay = DelayFromCountDownTimer<CountDownTimer<TIM1>>;
 
+pub type Syst = pac::SYST;
+
 pub struct Board {
+    pub syst: Syst,
     pub engines: FlightControllerEnginePwm,
     pub imu_spi: ImuSpi,
     pub imu_cs: ImuCs,
@@ -44,10 +47,11 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn init(_core: rtic::export::Peripherals, device: pac::Peripherals) -> Board {
+    pub fn init(core: rtic::export::Peripherals, device: pac::Peripherals) -> Board {
         let mut rcc = device.RCC.constrain();
         let rcc_clocks = rcc.clocks;
         let mut syscfg = device.SYSCFG.constrain();
+        let syst = core.SYST;
 
         let gpioa = device.GPIOA.split(&mut rcc);
         let gpiob = device.GPIOB.split(&mut rcc);
@@ -108,6 +112,7 @@ impl Board {
         interrupts.activate();
 
         Board {
+            syst,
             engines,
             imu_spi,
             imu_cs,
