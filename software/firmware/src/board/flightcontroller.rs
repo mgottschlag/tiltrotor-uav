@@ -44,7 +44,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn init(_core: rtic::Peripherals, device: pac::Peripherals) -> Board {
+    pub fn init(_core: rtic::export::Peripherals, device: pac::Peripherals) -> Board {
         let mut rcc = device.RCC.constrain();
         let rcc_clocks = rcc.clocks;
         let mut syscfg = device.SYSCFG.constrain();
