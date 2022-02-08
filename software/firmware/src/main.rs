@@ -53,10 +53,6 @@ const APP: () = {
         rprintln!("Setting up pwm ...");
         let engine_pwm = board.engines;
 
-        /*ctx.schedule
-        .radio_test(ctx.start + 48_000_000.cycles())
-        .unwrap();*/
-
         init::LateResources {
             engines: Engines {
                 engine_pwm,
