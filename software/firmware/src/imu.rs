@@ -1,6 +1,5 @@
 use libm::{atan2f, powf, sqrtf};
-use mpu9250::{ImuMeasurements, Mpu9250, SpiDevice};
-use rtt_target::rprintln;
+use mpu9250::{Mpu9250, SpiDevice};
 
 pub use crate::board::{ImuCs, ImuDelay, ImuIrq, ImuSpi};
 

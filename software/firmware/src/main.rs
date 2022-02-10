@@ -25,11 +25,12 @@ mod app {
     use crate::RadioInterruptType;
 
     #[shared]
-    struct Shared {}
+    struct Shared {
+        engines: Engines,
+    }
 
     #[local]
     struct Local {
-        engines: Engines,
         imu: Imu,
         radio: Radio,
         interrupts: RadioInterruptType,
@@ -66,15 +67,15 @@ mod app {
         );
 
         let mono: Systick<100> = Systick::new(board.syst, 16_000_000);
-        update::spawn_after(1.secs()).unwrap();
+        //update::spawn_after(1.secs()).unwrap();
         (
-            Shared {},
-            Local {
+            Shared {
                 engines: Engines {
                     engine_pwm,
-                    engine_speed: 0,
-                    current_engine: 0,
+                    engine_speed: [0; 4],
                 },
+            },
+            Local {
                 imu,
                 radio,
                 interrupts,
@@ -83,15 +84,30 @@ mod app {
         )
     }
 
-    #[task(local = [imu])]
-    fn update(ctx: update::Context) {
+    /*#[task(local = [imu], shared = [engines])]
+    fn update(mut ctx: update::Context) {
+        update::spawn_after(1.secs()).unwrap();
+
         let data = ctx.local.imu.get_rotations();
         rprintln!("{} {}", data.pitch, data.roll);
-        update::spawn_after(1.secs()).unwrap();
-    }
 
-    #[task(binds = EXTI15_10, local = [engines, interrupts, radio])]
-    fn radio_irq(ctx: radio_irq::Context) {
+        let correction_factor = 1.0;
+        let c_pitch = ((data.pitch - 90.0) / 90.0 * correction_factor) as u16;
+        let c_roll = ((data.roll - 90.0) / 90.0 * correction_factor) as u16;
+
+        (ctx.shared.engines).lock(|engines| {
+            engines.engine_speed[0] = clamp(engines.engine_speed[0] + c_pitch + c_roll);
+            engines.engine_speed[1] = clamp(engines.engine_speed[1] + c_pitch - c_roll);
+            engines.engine_speed[2] = clamp(engines.engine_speed[2] - c_pitch + c_roll);
+            engines.engine_speed[3] = clamp(engines.engine_speed[3] - c_pitch + c_roll);
+
+            rprintln!("Engines!: {:?}", engines.engine_speed);
+            engines.engine_pwm.set_duty(engines.engine_speed);
+        });
+    }*/
+
+    #[task(binds = EXTI15_10, local = [interrupts, radio], shared = [engines])]
+    fn radio_irq(mut ctx: radio_irq::Context) {
         let status = protocol::Status { r: 1.0, p: 2.0 };
 
         rprintln!("Radio!");
@@ -102,14 +118,25 @@ mod app {
             None => {}
             Some(cmd) => {
                 rprintln!("Thrust {:?}!", cmd.thrust);
-                let max_duty = ctx.local.engines.engine_pwm.get_max_duty() as u32;
-                let mut duty = [0; 4];
-                for i in 0..4 {
-                    duty[i] = (max_duty / 20 + max_duty / 20 * cmd.thrust[i] as u32 / 256) as u16;
-                }
-                ctx.local.engines.engine_pwm.set_duty(duty);
+                (ctx.shared.engines).lock(|engines| {
+                    let max_duty = engines.engine_pwm.get_max_duty() as u32;
+                    for i in 0..4 {
+                        engines.engine_speed[i] =
+                            (max_duty / 20 + max_duty / 20 * cmd.thrust[i] as u32 / 256) as u16;
+                    }
+
+                    rprintln!("Engines?: {:?}", engines.engine_speed);
+                    engines.engine_pwm.set_duty(engines.engine_speed);
+                });
             }
         }
+    }
+
+    fn clamp(v: u16) -> u16 {
+        if v > 255 {
+            return 255;
+        }
+        return v;
     }
 
     #[idle]
@@ -120,6 +147,5 @@ mod app {
 
 pub struct Engines {
     engine_pwm: board::EnginePwmType,
-    engine_speed: u32,
-    current_engine: usize,
+    engine_speed: [u16; 4],
 }
