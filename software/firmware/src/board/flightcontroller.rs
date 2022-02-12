@@ -186,9 +186,9 @@ impl EnginePwm for FlightControllerEnginePwm {
         self.c.0.get_max_duty() as u16
     }
     fn set_duty(&mut self, duty: [u16; 4]) {
-        self.c.0.set_duty(duty[0] as u32);
-        self.c.1.set_duty(duty[1] as u32);
-        self.c.2.set_duty(duty[2] as u32);
-        self.c.3.set_duty(duty[3] as u32);
+        self.c.0.set_duty((duty[1] as u32) * 5);
+        self.c.1.set_duty((duty[0] as u32) * 5);
+        self.c.2.set_duty((duty[3] as u32) * 5);
+        self.c.3.set_duty((duty[2] as u32) * 5);
     }
 }

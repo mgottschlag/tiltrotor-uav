@@ -67,12 +67,12 @@ mod app {
         );
 
         let mono: Systick<100> = Systick::new(board.syst, 16_000_000);
-        //update::spawn_after(1.secs()).unwrap();
+        update::spawn_after(100.millis()).unwrap();
         (
             Shared {
                 engines: Engines {
-                    engine_pwm,
-                    engine_speed: [0; 4],
+                    pwm: engine_pwm,
+                    thrust: [0; 4],
                 },
             },
             Local {
@@ -84,57 +84,66 @@ mod app {
         )
     }
 
-    /*#[task(local = [imu], shared = [engines])]
+    #[task(local = [imu], shared = [engines])]
     fn update(mut ctx: update::Context) {
-        update::spawn_after(1.secs()).unwrap();
+        update::spawn_after(100.millis()).unwrap();
 
         let data = ctx.local.imu.get_rotations();
-        rprintln!("{} {}", data.pitch, data.roll);
 
         let correction_factor = 1.0;
-        let c_pitch = ((data.pitch - 90.0) / 90.0 * correction_factor) as u16;
-        let c_roll = ((data.roll - 90.0) / 90.0 * correction_factor) as u16;
+        let c_pitch = (data.pitch * correction_factor) as i16;
+        let c_roll = (data.roll * correction_factor) as i16;
 
+        let mut pwm: [u16; 4] = [0; 4];
         (ctx.shared.engines).lock(|engines| {
-            engines.engine_speed[0] = clamp(engines.engine_speed[0] + c_pitch + c_roll);
-            engines.engine_speed[1] = clamp(engines.engine_speed[1] + c_pitch - c_roll);
-            engines.engine_speed[2] = clamp(engines.engine_speed[2] - c_pitch + c_roll);
-            engines.engine_speed[3] = clamp(engines.engine_speed[3] - c_pitch + c_roll);
+            let mut actual_thrust: [i16; 4] = [0; 4];
 
-            rprintln!("Engines!: {:?}", engines.engine_speed);
-            engines.engine_pwm.set_duty(engines.engine_speed);
+            actual_thrust[0] = clamp(engines.thrust[0] as i16 + c_pitch - c_roll);
+            actual_thrust[1] = clamp(engines.thrust[1] as i16 + c_pitch + c_roll);
+            actual_thrust[2] = clamp(engines.thrust[2] as i16 - c_pitch + c_roll);
+            actual_thrust[3] = clamp(engines.thrust[3] as i16 - c_pitch - c_roll);
+
+            let max_duty = engines.pwm.get_max_duty() as u32;
+            for i in 0..4 {
+                pwm[i] = (max_duty / 20 + max_duty / 20 * actual_thrust[i] as u32 / 255) as u16;
+            }
+            engines.pwm.set_duty(pwm);
+
+            rprintln!(
+                "update: pitch={}, roll={}, thrust={:?}, actual={:?}, pwm={:?}",
+                data.pitch,
+                data.roll,
+                engines.thrust,
+                actual_thrust,
+                pwm
+            );
         });
-    }*/
+    }
 
     #[task(binds = EXTI15_10, local = [interrupts, radio], shared = [engines])]
     fn radio_irq(mut ctx: radio_irq::Context) {
         let status = protocol::Status { r: 1.0, p: 2.0 };
 
-        rprintln!("Radio!");
+        //rprintln!("Radio!");
         ctx.local.interrupts.reset();
         // status is set as ACK payload for the next icoming command
         // TODO: consider two-way protocol to return status as reponse for most recent incoming command
         match ctx.local.radio.poll(&status) {
             None => {}
             Some(cmd) => {
-                rprintln!("Thrust {:?}!", cmd.thrust);
                 (ctx.shared.engines).lock(|engines| {
-                    let max_duty = engines.engine_pwm.get_max_duty() as u32;
-                    for i in 0..4 {
-                        engines.engine_speed[i] =
-                            (max_duty / 20 + max_duty / 20 * cmd.thrust[i] as u32 / 256) as u16;
-                    }
-
-                    rprintln!("Engines?: {:?}", engines.engine_speed);
-                    engines.engine_pwm.set_duty(engines.engine_speed);
+                    engines.thrust = cmd.thrust;
                 });
             }
         }
     }
 
-    fn clamp(v: u16) -> u16 {
-        if v > 255 {
-            return 255;
+    fn clamp(v: i16) -> i16 {
+        if v > 80 {
+            return 80;
+        }
+        if v < 0 {
+            return 0;
         }
         return v;
     }
@@ -146,6 +155,6 @@ mod app {
 }
 
 pub struct Engines {
-    engine_pwm: board::EnginePwmType,
-    engine_speed: [u16; 4],
+    pwm: board::EnginePwmType,
+    thrust: [u8; 4],
 }
