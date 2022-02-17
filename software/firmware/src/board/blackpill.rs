@@ -1,13 +1,23 @@
-use stm32f4xx_hal::gpio::gpioa::{PA10, PA5, PA6, PA7, PA8, PA9};
+use stm32f4xx_hal::gpio::{
+    gpioa::{PA10, PA5, PA6, PA7, PA8, PA9},
+    gpiob::{PB10, PB12, PB13, PB14, PB15},
+};
 use stm32f4xx_hal::gpio::{Alternate, Output, PushPull};
 pub use stm32f4xx_hal::pac;
-use stm32f4xx_hal::pac::SPI1;
+use stm32f4xx_hal::pac::{SPI1, SPI2};
 use stm32f4xx_hal::prelude::*;
 use stm32f4xx_hal::pwm::{PwmChannel, C1, C2, C3, C4};
 use stm32f4xx_hal::spi::{Mode, Phase, Polarity, Spi, TransferModeNormal};
 use stm32f4xx_hal::timer::Timer;
 
 use super::EnginePwm;
+
+pub type ImuSck = PB13<Alternate<PushPull, 5>>;
+pub type ImuMiso = PB14<Alternate<PushPull, 5>>;
+pub type ImuMosi = PB15<Alternate<PushPull, 5>>;
+pub type ImuCs = PB12<Output<PushPull>>;
+pub type ImuIrq = PB10<Output<PushPull>>;
+pub type ImuSpi = Spi<SPI2, (ImuSck, ImuMiso, ImuMosi), TransferModeNormal>;
 
 pub type RadioSck = PA5<Alternate<PushPull, 5>>;
 pub type RadioMiso = PA6<Alternate<PushPull, 5>>;
@@ -19,6 +29,9 @@ pub type RadioSpi = Spi<SPI1, (RadioSck, RadioMiso, RadioMosi), TransferModeNorm
 
 pub struct Board {
     pub engines: BlackpillEnginePwm,
+    pub imu_spi: ImuSpi,
+    pub imu_cs: ImuCs,
+    pub imu_irq: ImuIrq,
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
@@ -28,7 +41,6 @@ pub struct Board {
 impl Board {
     pub fn init(_core: rtic::Peripherals, device: pac::Peripherals) -> Board {
         let rcc = device.RCC.constrain();
-
         let clocks = rcc
             .cfgr
             .use_hse(25.mhz())
@@ -37,6 +49,7 @@ impl Board {
             .freeze();
 
         let gpioa = device.GPIOA.split();
+        let gpiob = device.GPIOB.split();
 
         // init pwm
         let c1 = gpioa.pa0.into_alternate();
@@ -65,8 +78,28 @@ impl Board {
             &clocks,
         );
 
+        // init imu
+        let imu_sck = gpiob.pb13.into_alternate();
+        let imu_miso = gpiob.pb14.into_alternate();
+        let imu_mosi = gpiob.pb15.into_alternate();
+        let imu_cs = gpiob.pb12.into_push_pull_output();
+        let imu_irq = gpiob.pb10.into_push_pull_output();
+        let imu_spi = Spi::new(
+            device.SPI2,
+            (imu_sck, imu_miso, imu_mosi),
+            Mode {
+                polarity: Polarity::IdleLow,
+                phase: Phase::CaptureOnFirstTransition,
+            },
+            2_000_000.hz(),
+            &clocks,
+        );
+
         Board {
             engines,
+            imu_spi,
+            imu_cs,
+            imu_irq,
             radio_spi,
             radio_cs,
             radio_ce,

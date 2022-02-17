@@ -342,6 +342,8 @@ dependencies = [
  "embedded-hal",
  "embedded-nrf24l01",
  "heapless 0.7.9",
+ "libm",
+ "mpu9250",
  "nb 1.0.0",
  "nrf52840-hal",
  "panic-halt",
@@ -352,6 +354,7 @@ dependencies = [
  "stm32f1xx-hal",
  "stm32f4xx-hal",
  "stm32g4xx-hal",
+ "systick-monotonic",
 ]
 
 [[package]]
@@ -638,6 +641,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0005d08a8f7b65fb8073cb697aa0b12b631ed251ce73d862ce50eeb52ce3b50"
 
 [[package]]
+name = "libm"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33a33a362ce288760ec6a508b94caaec573ae7d3bbbd91b87aa0bad4456839db"
+
+[[package]]
 name = "libudev"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -773,6 +782,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9f1c5b025cda876f66ef43a113f91ebc9f4ccef34843000e0adf6ebbab84e21"
 dependencies = [
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "mpu9250"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75638d99c5a3f1109ff1022c77c1f8cd4e095f8b2ab3aa8a62f61e49084a022d"
+dependencies = [
+ "bitflags",
+ "cast 0.2.7",
+ "embedded-hal",
 ]
 
 [[package]]
@@ -1387,6 +1407,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "systick-monotonic"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e71d8e4587d8f434b88b9aef901987f46164df813a3a1d6bdf3a58debf67f0"
+dependencies = [
+ "cortex-m 0.7.4",
+ "fugit",
+ "rtic-monotonic",
 ]
 
 [[package]]

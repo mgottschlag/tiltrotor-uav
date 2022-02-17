@@ -1,7 +1,9 @@
-use pac::SPI3;
+use pac::{SPI1, SPI3, TIM1};
+use stm32g4xx_hal::delay::DelayFromCountDownTimer;
+use stm32g4xx_hal::gpio::gpioa::{PA4, PA5, PA6, PA7};
 use stm32g4xx_hal::gpio::gpiob::PB5;
-use stm32g4xx_hal::gpio::gpioc::{PC10, PC11, PC13, PC14, PC6};
-use stm32g4xx_hal::gpio::{Alternate, Floating, Input, Output, PushPull, AF6};
+use stm32g4xx_hal::gpio::gpioc::{PC10, PC11, PC13, PC14, PC4, PC6};
+use stm32g4xx_hal::gpio::{Alternate, Floating, Input, Output, PushPull, AF5, AF6};
 use stm32g4xx_hal::gpio::{ExtiPin, SignalEdge};
 use stm32g4xx_hal::prelude::*;
 use stm32g4xx_hal::pwm::{ActiveHigh, ComplementaryImpossible, Pwm, C1, C2, C3, C4};
@@ -9,6 +11,7 @@ use stm32g4xx_hal::rcc::Config;
 use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
 use stm32g4xx_hal::syscfg::SysCfgExt;
+use stm32g4xx_hal::timer::{CountDownTimer, Timer};
 
 use super::{EnginePwm, RadioInterrupt};
 
@@ -20,8 +23,23 @@ pub type RadioCe = PC13<Output<PushPull>>;
 pub type RadioIrq = PC14<Input<Floating>>;
 pub type RadioSpi = Spi<SPI3, (RadioSck, RadioMiso, RadioMosi)>;
 
+pub type ImuSck = PA5<Alternate<AF5>>;
+pub type ImuMiso = PA6<Alternate<AF5>>;
+pub type ImuMosi = PA7<Alternate<AF5>>;
+pub type ImuCs = PC4<Output<PushPull>>;
+pub type ImuIrq = PA4<Output<PushPull>>;
+pub type ImuSpi = Spi<SPI1, (ImuSck, ImuMiso, ImuMosi)>;
+pub type ImuDelay = DelayFromCountDownTimer<CountDownTimer<TIM1>>;
+
+pub type Syst = pac::SYST;
+
 pub struct Board {
+    pub syst: Syst,
     pub engines: FlightControllerEnginePwm,
+    pub imu_spi: ImuSpi,
+    pub imu_cs: ImuCs,
+    pub imu_irq: ImuIrq,
+    pub imu_delay: DelayFromCountDownTimer<CountDownTimer<TIM1>>,
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
@@ -29,9 +47,11 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn init(_core: rtic::export::Peripherals, device: pac::Peripherals) -> Board {
+    pub fn init(core: rtic::export::Peripherals, device: pac::Peripherals) -> Board {
         let mut rcc = device.RCC.constrain();
+        let rcc_clocks = rcc.clocks;
         let mut syscfg = device.SYSCFG.constrain();
+        let syst = core.SYST;
 
         let gpioa = device.GPIOA.split(&mut rcc);
         let gpiob = device.GPIOB.split(&mut rcc);
@@ -65,6 +85,24 @@ impl Board {
             &mut clocks,
         );
 
+        // init imu
+        let imu_sck = gpioa.pa5.into_alternate();
+        let imu_miso = gpioa.pa6.into_alternate();
+        let imu_mosi = gpioa.pa7.into_alternate();
+        let imu_cs = gpioc.pc4.into_push_pull_output();
+        let imu_irq = gpioa.pa4.into_push_pull_output();
+        let imu_spi = device.SPI1.spi(
+            (imu_sck, imu_miso, imu_mosi),
+            Mode {
+                polarity: Polarity::IdleLow,
+                phase: Phase::CaptureOnFirstTransition,
+            },
+            2.mhz(),
+            &mut clocks,
+        );
+        let imu_timer = Timer::new(device.TIM1, &rcc_clocks);
+        let imu_delay = DelayFromCountDownTimer::new(imu_timer.start_count_down(1.ms()));
+
         // init interrupts and interrupt handler
         let mut exti = device.EXTI;
         radio_irq.make_interrupt_source(&mut syscfg);
@@ -74,7 +112,12 @@ impl Board {
         interrupts.activate();
 
         Board {
+            syst,
             engines,
+            imu_spi,
+            imu_cs,
+            imu_irq,
+            imu_delay,
             radio_spi,
             radio_cs,
             radio_ce,
@@ -143,9 +186,9 @@ impl EnginePwm for FlightControllerEnginePwm {
         self.c.0.get_max_duty() as u16
     }
     fn set_duty(&mut self, duty: [u16; 4]) {
-        self.c.0.set_duty(duty[0] as u32);
-        self.c.1.set_duty(duty[1] as u32);
-        self.c.2.set_duty(duty[2] as u32);
-        self.c.3.set_duty(duty[3] as u32);
+        self.c.0.set_duty((duty[1] as u32) * 5);
+        self.c.1.set_duty((duty[0] as u32) * 5);
+        self.c.2.set_duty((duty[3] as u32) * 5);
+        self.c.3.set_duty((duty[2] as u32) * 5);
     }
 }

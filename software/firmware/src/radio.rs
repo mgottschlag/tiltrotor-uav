@@ -64,7 +64,7 @@ impl Radio {
 
             // read incoming packet
             let payload = self.rx.read().unwrap();
-            rprintln!("- Got {} bytes: {:02X?}", payload.len(), payload.as_ref());
+            //rprintln!("- Got {} bytes: {:02X?}", payload.len(), payload.as_ref());
             self.rx.send(&buf[..size], Some(1)).unwrap();
 
             let mut payload_array = [0u8; 32];
