@@ -18,6 +18,7 @@ mod app {
     use systick_monotonic::*;
 
     use crate::board::{EnginePwm, RadioInterrupt};
+    use crate::imu::Rotations;
     use crate::Board;
     use crate::Engines;
     use crate::Imu;
@@ -27,6 +28,7 @@ mod app {
     #[shared]
     struct Shared {
         engines: Engines,
+        rotations: Rotations,
     }
 
     #[local]
@@ -74,6 +76,11 @@ mod app {
                     pwm: engine_pwm,
                     thrust: [0; 4],
                 },
+                rotations: Rotations {
+                    roll: 0.0,
+                    pitch: 0.0,
+                    yaw: 0.0,
+                },
             },
             Local {
                 imu,
@@ -84,18 +91,21 @@ mod app {
         )
     }
 
-    #[task(local = [imu], shared = [engines])]
-    fn update(mut ctx: update::Context) {
+    #[task(local = [imu], shared = [engines, rotations])]
+    fn update(ctx: update::Context) {
         update::spawn_after(100.millis()).unwrap();
 
-        let data = ctx.local.imu.get_rotations();
+        let shared = ctx.shared;
+        let local = ctx.local;
 
-        let correction_factor = 1.0;
-        let c_pitch = (data.pitch * correction_factor) as i16;
-        let c_roll = (data.roll * correction_factor) as i16;
+        (shared.engines, shared.rotations).lock(|engines, rotations| {
+            *rotations = local.imu.get_rotations();
 
-        let mut pwm: [u16; 4] = [0; 4];
-        (ctx.shared.engines).lock(|engines| {
+            let correction_factor = 0.0;
+            let c_pitch = (rotations.pitch * correction_factor) as i16;
+            let c_roll = (rotations.roll * correction_factor) as i16;
+
+            let mut pwm: [u16; 4] = [0; 4];
             let mut actual_thrust: [i16; 4] = [0; 4];
 
             actual_thrust[0] = clamp(engines.thrust[0] as i16 + c_pitch - c_roll);
@@ -111,8 +121,8 @@ mod app {
 
             rprintln!(
                 "update: pitch={}, roll={}, thrust={:?}, actual={:?}, pwm={:?}",
-                data.pitch,
-                data.roll,
+                rotations.pitch,
+                rotations.roll,
                 engines.thrust,
                 actual_thrust,
                 pwm
@@ -120,9 +130,14 @@ mod app {
         });
     }
 
-    #[task(binds = EXTI15_10, local = [interrupts, radio], shared = [engines])]
+    #[task(binds = EXTI15_10, local = [interrupts, radio], shared = [engines, rotations])]
     fn radio_irq(mut ctx: radio_irq::Context) {
-        let status = protocol::Status { r: 1.0, p: 2.0 };
+        let mut status = protocol::Status { r: 0.0, p: 0.0 };
+
+        (ctx.shared.rotations).lock(|rotations| {
+            status.r = rotations.roll;
+            status.p = rotations.pitch;
+        });
 
         //rprintln!("Radio!");
         ctx.local.interrupts.reset();
