@@ -7,13 +7,15 @@ use stm32g4xx_hal::gpio::{Alternate, Floating, Input, Output, PushPull, AF5, AF6
 use stm32g4xx_hal::gpio::{ExtiPin, SignalEdge};
 use stm32g4xx_hal::prelude::*;
 use stm32g4xx_hal::pwm::{ActiveHigh, ComplementaryImpossible, Pwm, C1, C2, C3, C4};
-use stm32g4xx_hal::rcc::Config;
+use stm32g4xx_hal::rcc::{Clocks, Config};
 use stm32g4xx_hal::spi::{Mode, Phase, Polarity, Spi};
 pub use stm32g4xx_hal::stm32 as pac;
+pub use stm32g4xx_hal::stm32::{DCB, DWT};
 use stm32g4xx_hal::syscfg::SysCfgExt;
 use stm32g4xx_hal::timer::{CountDownTimer, Timer};
+use stm32g4xx_hal::timer::{Instant, MonoTimer};
 
-use super::{EnginePwm, RadioInterrupt};
+use super::{EnginePwm, PidTimer, RadioInterrupt};
 
 pub type RadioSck = PC10<Alternate<AF6>>;
 pub type RadioMiso = PC11<Alternate<AF6>>;
@@ -44,6 +46,7 @@ pub struct Board {
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
     pub interrupts: FlightControllerRadioInterrupt,
+    pub pid_timer: FlightControllerPidTimer,
 }
 
 impl Board {
@@ -111,6 +114,8 @@ impl Board {
         let mut interrupts = FlightControllerRadioInterrupt::init(exti, radio_irq);
         interrupts.activate();
 
+        let pid_timer = FlightControllerPidTimer::new(core.DWT, core.DCB, &rcc_clocks);
+
         Board {
             syst,
             engines,
@@ -122,6 +127,7 @@ impl Board {
             radio_cs,
             radio_ce,
             interrupts,
+            pid_timer,
         }
     }
 }
@@ -190,5 +196,31 @@ impl EnginePwm for FlightControllerEnginePwm {
         self.c.1.set_duty((duty[0] as u32) * 5);
         self.c.2.set_duty((duty[3] as u32) * 5);
         self.c.3.set_duty((duty[2] as u32) * 5);
+    }
+}
+
+pub type PidTimerType = FlightControllerPidTimer;
+
+pub struct FlightControllerPidTimer {
+    mono_timer: MonoTimer,
+    instant: Instant,
+}
+
+impl FlightControllerPidTimer {
+    pub fn new(dwt: DWT, dcb: DCB, clocks: &Clocks) -> Self {
+        let mono_timer = MonoTimer::new(dwt, dcb, clocks);
+        let instant = mono_timer.now();
+        FlightControllerPidTimer {
+            mono_timer,
+            instant,
+        }
+    }
+}
+
+impl PidTimer for FlightControllerPidTimer {
+    fn elapsed_secs(&mut self) -> f32 {
+        let res = self.instant.elapsed();
+        self.instant = self.mono_timer.now();
+        res as f32 / 16_000_000 as f32 // TODO get frequency programatically
     }
 }
