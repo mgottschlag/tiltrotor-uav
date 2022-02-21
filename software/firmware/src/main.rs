@@ -17,11 +17,12 @@ mod app {
     use rtt_target::{rprintln, rtt_init_print};
     use systick_monotonic::*;
 
-    use crate::board::{EnginePwm, RadioInterrupt};
+    use crate::board::{EnginePwm, PidTimer, RadioInterrupt};
     use crate::imu::Rotations;
     use crate::Board;
     use crate::Engines;
     use crate::Imu;
+    use crate::Pid;
     use crate::Radio;
     use crate::RadioInterruptType;
 
@@ -67,6 +68,9 @@ mod app {
             board.imu_irq,
             &mut board.imu_delay,
         );
+        let pid_timer = board.pid_timer;
+        let pid_pitch = Pid::new(1.0, 0.5, 0.25);
+        let pid_roll = Pid::new(1.0, 0.5, 0.25);
 
         let mono: Systick<100> = Systick::new(board.syst, 16_000_000);
         update::spawn_after(100.millis()).unwrap();
@@ -75,6 +79,9 @@ mod app {
                 engines: Engines {
                     pwm: engine_pwm,
                     thrust: [0; 4],
+                    pid_timer: pid_timer,
+                    pid_pitch,
+                    pid_roll,
                 },
                 rotations: Rotations {
                     roll: 0.0,
@@ -93,17 +100,24 @@ mod app {
 
     #[task(local = [imu], shared = [engines, rotations])]
     fn update(ctx: update::Context) {
-        update::spawn_after(100.millis()).unwrap();
+        update::spawn_after(1000.millis()).unwrap();
 
         let shared = ctx.shared;
         let local = ctx.local;
 
         (shared.engines, shared.rotations).lock(|engines, rotations| {
             *rotations = local.imu.get_rotations();
+            let duration = engines.pid_timer.elapsed_secs();
 
-            let correction_factor = 0.0;
-            let c_pitch = (rotations.pitch * correction_factor) as i16;
-            let c_roll = (rotations.roll * correction_factor) as i16;
+            let target_error_pitch = 0.0;
+            let target_error_roll = 0.0;
+
+            let c_pitch = engines
+                .pid_pitch
+                .update(target_error_pitch, rotations.pitch, duration);
+            let c_roll = engines
+                .pid_roll
+                .update(target_error_roll, rotations.roll, duration);
 
             let mut pwm: [u16; 4] = [0; 4];
             let mut actual_thrust: [i16; 4] = [0; 4];
@@ -120,12 +134,13 @@ mod app {
             engines.pwm.set_duty(pwm);
 
             rprintln!(
-                "update: pitch={}, roll={}, thrust={:?}, actual={:?}, pwm={:?}",
+                "update: pitch={}, roll={}, thrust={:?}, actual={:?}, pwm={:?}, duration={:?}",
                 rotations.pitch,
                 rotations.roll,
                 engines.thrust,
                 actual_thrust,
-                pwm
+                pwm,
+                duration,
             );
         });
     }
@@ -172,4 +187,36 @@ mod app {
 pub struct Engines {
     pwm: board::EnginePwmType,
     thrust: [u8; 4],
+    pid_timer: board::PidTimerType,
+    pid_pitch: Pid,
+    pid_roll: Pid,
+}
+
+pub struct Pid {
+    kp: f32,
+    ki: f32,
+    kd: f32,
+    last_error: f32,
+    cum_error: f32,
+}
+
+impl Pid {
+    pub fn new(kp: f32, ki: f32, kd: f32) -> Self {
+        Pid {
+            kp,
+            ki,
+            kd,
+            last_error: 0.0,
+            cum_error: 0.0,
+        }
+    }
+
+    pub fn update(&mut self, target_error: f32, actual_error: f32, duration: f32) -> i16 {
+        let error = target_error - actual_error; // P
+        self.cum_error = self.cum_error + error * duration; // I
+        let rate_error = (error - self.last_error) / duration; // D
+        self.last_error = error;
+
+        (error * self.kp + self.cum_error * self.ki + rate_error * self.kd) as i16
+    }
 }

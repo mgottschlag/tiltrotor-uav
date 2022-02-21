@@ -25,3 +25,7 @@ pub trait RadioInterrupt {
     fn activate(&mut self);
     fn reset(&mut self);
 }
+
+pub trait PidTimer {
+    fn elapsed_secs(&mut self) -> f32;
+}
