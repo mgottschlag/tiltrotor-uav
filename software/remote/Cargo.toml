@@ -8,7 +8,8 @@ edition = "2021"
 
 [dependencies]
 crossterm = { version = "0.23.0", features = [ "event-stream" ] }
-futures = "0.3"
+futures = "0.3.21"
+futures-timer = "3.0.2"
 nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "8e4ebdd" }
 protocol = { path = "../protocol" }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
