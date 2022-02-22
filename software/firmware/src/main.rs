@@ -79,6 +79,7 @@ mod app {
                 engines: Engines {
                     pwm: engine_pwm,
                     thrust: [0; 4],
+                    pose: [0.0; 2],
                     pid_timer: pid_timer,
                     pid_pitch,
                     pid_roll,
@@ -109,8 +110,8 @@ mod app {
             *rotations = local.imu.get_rotations();
             let duration = engines.pid_timer.elapsed_secs();
 
-            let target_error_pitch = 0.0;
-            let target_error_roll = 0.0;
+            let target_error_pitch = engines.pose[0];
+            let target_error_roll = engines.pose[1];
 
             let c_pitch = engines
                 .pid_pitch
@@ -163,6 +164,7 @@ mod app {
             Some(cmd) => {
                 (ctx.shared.engines).lock(|engines| {
                     engines.thrust = cmd.thrust;
+                    engines.pose = cmd.pose;
                 });
             }
         }
@@ -187,6 +189,7 @@ mod app {
 pub struct Engines {
     pwm: board::EnginePwmType,
     thrust: [u8; 4],
+    pose: [f32; 2],
     pid_timer: board::PidTimerType,
     pid_pitch: Pid,
     pid_roll: Pid,
