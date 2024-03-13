@@ -4,11 +4,11 @@ use stm32f4xx_hal::gpio::{
 };
 use stm32f4xx_hal::gpio::{Alternate, Output, PushPull};
 pub use stm32f4xx_hal::pac;
-use stm32f4xx_hal::pac::{SPI1, SPI2};
+use stm32f4xx_hal::pac::{SPI1, SPI2, TIM1};
 use stm32f4xx_hal::prelude::*;
 use stm32f4xx_hal::pwm::{PwmChannel, C1, C2, C3, C4};
 use stm32f4xx_hal::spi::{Mode, Phase, Polarity, Spi, TransferModeNormal};
-use stm32f4xx_hal::timer::Timer;
+use stm32f4xx_hal::timer::{CountDownTimer, Timer};
 
 use super::EnginePwm;
 
@@ -18,6 +18,7 @@ pub type ImuMosi = PB15<Alternate<PushPull, 5>>;
 pub type ImuCs = PB12<Output<PushPull>>;
 pub type ImuIrq = PB10<Output<PushPull>>;
 pub type ImuSpi = Spi<SPI2, (ImuSck, ImuMiso, ImuMosi), TransferModeNormal>;
+pub type ImuDelay = DelayFromCountDownTimer<CountDownTimer<TIM1>>;
 
 pub type RadioSck = PA5<Alternate<PushPull, 5>>;
 pub type RadioMiso = PA6<Alternate<PushPull, 5>>;
@@ -39,7 +40,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn init(_core: rtic::Peripherals, device: pac::Peripherals) -> Board {
+    pub fn init(_core: rtic::export::Peripherals, device: pac::Peripherals) -> Board {
         let rcc = device.RCC.constrain();
         let clocks = rcc
             .cfgr

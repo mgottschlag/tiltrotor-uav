@@ -5,10 +5,12 @@ use panic_halt as _;
 
 use board::{Board, RadioInterruptType};
 use imu::Imu;
+use pid::Pid;
 use radio::Radio;
 
 mod board;
 mod imu;
+mod pid;
 mod radio;
 
 #[rtic::app(device = crate::board::pac, peripherals = true, dispatchers = [USART1])]
@@ -113,12 +115,18 @@ mod app {
             let target_error_pitch = engines.pose[0] as f32;
             let target_error_roll = engines.pose[1] as f32;
 
-            let c_pitch = engines
-                .pid_pitch
-                .update(target_error_pitch, rotations.pitch, duration);
-            let c_roll = engines
+            let mut c_pitch =
+                engines
+                    .pid_pitch
+                    .update(target_error_pitch, rotations.pitch, duration);
+            let mut c_roll = engines
                 .pid_roll
                 .update(target_error_roll, rotations.roll, duration);
+
+            if engines.thrust[0] < 50 {
+                c_pitch = 0;
+                c_roll = 0;
+            }
 
             let mut pwm: [u16; 4] = [0; 4];
             let mut actual_thrust: [i16; 4] = [0; 4];
@@ -156,8 +164,11 @@ mod app {
         });
 
         //rprintln!("Radio!");
-        ctx.local.interrupts.reset();
-        // status is set as ACK payload for the next icoming command
+        unsafe {
+            ctx.local.interrupts.reset();
+        }
+
+        // status is set as ACK payload for the next incoming command
         // TODO: consider two-way protocol to return status as reponse for most recent incoming command
         match ctx.local.radio.poll(&status) {
             None => {}
@@ -193,33 +204,4 @@ pub struct Engines {
     pid_timer: board::PidTimerType,
     pid_pitch: Pid,
     pid_roll: Pid,
-}
-
-pub struct Pid {
-    kp: f32,
-    ki: f32,
-    kd: f32,
-    last_error: f32,
-    cum_error: f32,
-}
-
-impl Pid {
-    pub fn new(kp: f32, ki: f32, kd: f32) -> Self {
-        Pid {
-            kp,
-            ki,
-            kd,
-            last_error: 0.0,
-            cum_error: 0.0,
-        }
-    }
-
-    pub fn update(&mut self, target_error: f32, actual_error: f32, duration: f32) -> i16 {
-        let error = target_error - actual_error; // P
-        self.cum_error = self.cum_error + error * duration; // I
-        let rate_error = (error - self.last_error) / duration; // D
-        self.last_error = error;
-
-        (error * self.kp + self.cum_error * self.ki + rate_error * self.kd) as i16
-    }
 }
