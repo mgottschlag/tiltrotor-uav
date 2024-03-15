@@ -4,6 +4,7 @@ members = [
     "protocol",
     "remote"
 ]
+resolver = "2"
 
 [profile]
 [profile.release]

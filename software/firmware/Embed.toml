@@ -1,5 +1,0 @@
-[default.general]
-chip = "STM32G431CBUx"
- 
-[default.rtt]
-enabled = true

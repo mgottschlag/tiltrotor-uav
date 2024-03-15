@@ -1,5 +1,6 @@
 #![no_std]
 
+use defmt::Format;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -8,7 +9,7 @@ pub struct Status {
     pub p: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Format)]
 pub struct Command {
     // [0..255]
     pub thrust: [u8; 4],

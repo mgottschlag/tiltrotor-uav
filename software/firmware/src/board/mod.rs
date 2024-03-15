@@ -16,10 +16,10 @@ mod feather_nrf52840;
 #[cfg(feature = "flightcontroller")]
 mod flightcontroller;
 
-pub trait EnginePwm {
+/*pub trait EnginePwm {
     fn get_max_duty(&self) -> u16;
     fn set_duty(&mut self, duty: [u16; 4]);
-}
+}*/
 
 pub trait RadioInterrupt {
     fn activate(&mut self);

@@ -1,13 +1,13 @@
 #[cfg(not(feature = "flightcontroller"))]
 use core::convert::Infallible;
+use defmt::*;
 use embedded_nrf24l01::{self, Configuration, CrcMode, DataRate, RxMode, NRF24L01};
-use rtt_target::rprintln;
 use serde::Serialize;
 use serde_cbor::de::from_mut_slice;
 use serde_cbor::ser::SliceWrite;
 use serde_cbor::Serializer;
 
-pub use crate::board::{RadioCe, RadioCs, RadioInterruptType, RadioIrq, RadioSpi};
+pub use crate::board::{RadioCe, RadioCs, RadioIrq, RadioSpi};
 
 pub struct Radio {
     #[cfg(feature = "flightcontroller")]
@@ -41,11 +41,12 @@ impl Radio {
         // clear message queue to force radio to disable interrupt
         let is_empty = rx.is_empty().unwrap();
         if !is_empty {
-            rprintln!("RX queue not empty. Truncating ...");
+            info!("RX queue not empty. Truncating ...");
             while let Some(_) = rx.can_read().unwrap() {
                 let res = rx.read().unwrap();
-                rprintln!("- Got {} bytes: {:02X?}", res.len(), res.as_ref());
+                info!("- Got {} bytes: 0x{:02x}", res.len(), res.as_ref());
             }
+            info!("RX queue truncated");
         }
 
         return Radio { rx };
@@ -64,7 +65,7 @@ impl Radio {
 
             // read incoming packet
             let payload = self.rx.read().unwrap();
-            //rprintln!("- Got {} bytes: {:02X?}", payload.len(), payload.as_ref());
+            info!("- Got {} bytes: {:02x}", payload.len(), payload.as_ref());
             self.rx.send(&buf[..size], Some(1)).unwrap();
 
             let mut payload_array = [0u8; 32];
@@ -74,11 +75,11 @@ impl Radio {
                 // TODO: input validation
                 Ok(Some(cmd)) => return cmd,
                 Ok(None) => {
-                    rprintln!("Failed to deserialize command");
+                    info!("Failed to deserialize command");
                     continue;
                 }
                 Err(err) => {
-                    rprintln!("Failed to deserialize command: {:?}", err);
+                    info!("Failed to deserialize command with error");
                     continue;
                 }
             }
