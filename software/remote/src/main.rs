@@ -4,9 +4,11 @@ use crossterm::{
 };
 use futures::{future::FutureExt, StreamExt};
 use futures_timer::Delay;
+use protocol::Command;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use structopt::StructOpt;
+use tokio::sync::mpsc;
 
 mod radio;
 
@@ -22,6 +24,9 @@ struct Opts {
         default_value = "/dev/ttyUSB_nrf24l01"
     )]
     device: PathBuf,
+
+    #[structopt(short = "b", long)]
+    offline: bool,
 }
 
 #[tokio::main]
@@ -29,31 +34,44 @@ async fn main() {
     let opts = Opts::from_args();
     println!("{opts:?}");
 
-    let radio = Radio::new(opts.device).await;
+    let (cmd_tx, cmd_rx) = mpsc::channel::<Command>(32);
+    let mut radio = Radio::new(opts.device, cmd_rx).await;
+    tokio::spawn(async move { radio.run().await });
+
     let reader = EventStream::new();
 
     enable_raw_mode().unwrap();
-    let mut remote = Remote::new(radio, reader).await;
+    let mut remote = Remote::new(cmd_tx, reader).await;
     remote.stop().await;
     remote.run().await;
     disable_raw_mode().unwrap();
 }
 
 struct Remote {
-    radio: Radio,
+    cmd_tx: tokio::sync::mpsc::Sender<Command>,
     reader: crossterm::event::EventStream,
 }
 
 impl Remote {
-    pub async fn new(radio: Radio, reader: crossterm::event::EventStream) -> Self {
-        Remote { radio, reader }
+    pub async fn new(
+        cmd_tx: tokio::sync::mpsc::Sender<Command>,
+        reader: crossterm::event::EventStream,
+    ) -> Self {
+        Remote { cmd_tx, reader }
     }
 
     async fn stop(&mut self) {
-        self.radio.send(&mut [0 as i16; 4], &mut [0; 2]).await;
+        self.cmd_tx
+            .send(Command {
+                thrust: [0; 4],
+                pose: [0; 2],
+            })
+            .await
+            .unwrap();
     }
+
     async fn run(&mut self) {
-        let mut thrust: [i16; 4] = [0; 4];
+        let mut thrust: [u8; 4] = [0; 4];
         let mut pose: [i8; 2] = [0; 2];
         let mut last_event = SystemTime::now();
         let mut pressed = false;
@@ -62,10 +80,6 @@ impl Remote {
             let delay = Delay::new(Duration::from_millis(10)).fuse();
             let event = self.reader.next().fuse();
             tokio::select! {
-                packet = self.radio.receive() => {
-                    let packet = packet.expect("could not receive packet");
-                    println!("Received {:?} from {}\r", packet.payload, packet.pipe);
-                },
                 maybe_event = event => {
                     match maybe_event {
                         Some(Ok(event)) => {
@@ -97,68 +111,6 @@ impl Remote {
                                     break;
                                 },
 
-                                // engine individual keys
-                                // - 'z' + 'h' for engine 1
-                                // - 'u' + 'j' for engine 1
-                                // - 'i' + 'k' for engine 1
-                                // - 'o' + 'l' for engine 1
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('z'),
-                                }) => {
-                                    thrust[0] += 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('h'),
-                                }) => {
-                                    thrust[0] -= 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('u'),
-                                }) => {
-                                    thrust[1] += 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('j'),
-                                }) => {
-                                    thrust[1] -= 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('i'),
-                                }) => {
-                                    thrust[2] += 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('k'),
-                                }) => {
-                                    thrust[2] -= 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('o'),
-                                }) => {
-                                    thrust[3] += 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('l'),
-                                }) => {
-                                    thrust[3] -= 10;
-                                    self.radio.send(&mut thrust, &mut pose).await;
-                                }
-
                                 // control thrust
                                 // - 'w' to go up
                                 // - 's' to go down
@@ -167,14 +119,20 @@ impl Remote {
                                     code: KeyCode::Char('w'),
                                 }) => {
                                     thrust = thrust.map(|e| {e+10});
-                                    self.radio.send(&mut thrust, &mut pose).await;
+                                    self.cmd_tx.send(Command {
+                                        thrust: thrust,
+                                        pose: pose,
+                                    }).await.unwrap();
                                 }
                                 Event::Key(KeyEvent{
                                     modifiers: KeyModifiers::NONE,
                                     code: KeyCode::Char('s'),
                                 }) => {
                                     thrust = thrust.map(|e| {e-10});
-                                    self.radio.send(&mut thrust, &mut pose).await;
+                                    self.cmd_tx.send(Command {
+                                        thrust: thrust,
+                                        pose: pose,
+                                    }).await.unwrap();
                                 }
 
                                 // control pose via arrow keys
@@ -185,7 +143,10 @@ impl Remote {
                                     last_event = SystemTime::now();
                                     pressed = true;
                                     pose[0] = 20;
-                                    self.radio.send(&mut thrust, &mut pose).await;
+                                    self.cmd_tx.send(Command {
+                                        thrust: thrust,
+                                        pose: pose,
+                                    }).await.unwrap();
                                 }
                                 Event::Key(KeyEvent{
                                     modifiers: KeyModifiers::NONE,
@@ -194,7 +155,10 @@ impl Remote {
                                     last_event = SystemTime::now();
                                     pressed = true;
                                     pose[0] = -20;
-                                    self.radio.send(&mut thrust, &mut pose).await;
+                                    self.cmd_tx.send(Command {
+                                        thrust: thrust,
+                                        pose: pose,
+                                    }).await.unwrap();
                                 }
                                 Event::Key(KeyEvent{
                                     modifiers: KeyModifiers::NONE,
@@ -203,7 +167,10 @@ impl Remote {
                                     last_event = SystemTime::now();
                                     pressed = true;
                                     pose[1] = 20;
-                                    self.radio.send(&mut thrust, &mut pose).await;
+                                    self.cmd_tx.send(Command {
+                                        thrust: thrust,
+                                        pose: pose,
+                                    }).await.unwrap();
                                 }
                                 Event::Key(KeyEvent{
                                     modifiers: KeyModifiers::NONE,
@@ -212,7 +179,10 @@ impl Remote {
                                     last_event = SystemTime::now();
                                     pressed = true;
                                     pose[1] = -20;
-                                    self.radio.send(&mut thrust, &mut pose).await;
+                                    self.cmd_tx.send(Command {
+                                        thrust: thrust,
+                                        pose: pose,
+                                    }).await.unwrap();
                                 }
 
                                 _ => {},
@@ -226,7 +196,10 @@ impl Remote {
                     if pressed && last_event.elapsed().unwrap() > Duration::new(0, 500_000_000) {
                         pressed = false;
                         pose = [0; 2];
-                        self.radio.send(&mut thrust, &mut pose).await;
+                        self.cmd_tx.send(Command {
+                            thrust: thrust,
+                            pose: pose,
+                        }).await.unwrap();
                     }
                 },
             }
