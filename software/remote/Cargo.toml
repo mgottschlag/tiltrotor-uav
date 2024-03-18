@@ -9,12 +9,11 @@ edition = "2021"
 [dependencies]
 protocol = { path = "../protocol" }
 
+ciborium = { workspace = true }
 crossterm = { workspace = true }
 futures = { workspace = true }
 futures-timer = { workspace = true }
 nrf24l01-stick-driver = { workspace = true }
-serde = { workspace = true }
-serde_cbor = { workspace = true }
 structopt = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

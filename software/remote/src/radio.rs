@@ -2,8 +2,6 @@ use nrf24l01_stick_driver::{
     Configuration, CrcMode, DataRate, Receiver, MAX_PAYLOAD_LEN, NRF24L01,
 };
 use protocol::{Command, Status};
-use serde::ser::Serialize;
-use serde_cbor::{de::from_mut_slice, ser::SliceWrite, Serializer};
 use std::cmp::{max, min};
 use std::path::PathBuf;
 
@@ -56,37 +54,24 @@ impl Radio {
         cmd.thrust = cmd.thrust.map(|e| min(max(e, 0), 255));
         cmd.pose = cmd.pose.map(|e| min(max(e, -90), 90));
 
-        let mut buf = [0u8; 32];
-        let writer = SliceWrite::new(&mut buf[..]);
-        let mut ser = Serializer::new(writer);
-        cmd.serialize(&mut ser).ok();
-        let writer = ser.into_inner();
-        let size = writer.bytes_written();
-        if size > MAX_PAYLOAD_LEN {
-            println!("ERROR: maximum payload size exeeded ({})\r", size);
-            return;
-        }
+        let mut buf = Vec::with_capacity(MAX_PAYLOAD_LEN);
+        ciborium::into_writer(&cmd, &mut buf).unwrap();
 
         match self
             .receiver
             .send(
                 (&[0x44u8, 0x72u8, 0x6fu8, 0x6eu8, 0x65u8][..]).into(),
-                &buf[0..size],
+                &buf[..buf.len()],
             )
             .await
         {
             Ok(Some(ack_payload)) => {
-                let mut data = ack_payload.payload;
+                let data = ack_payload.payload;
                 let size = data.len();
                 println!("Received ACK payload: {data:?}. len={size}\r");
-                match from_mut_slice::<Status>(&mut data[..size]) {
-                    Err(err) => {
-                        println!("err: {}\r", err)
-                    }
-                    Ok(status) => {
-                        println!("status: r={}, p={}\r", status.r, status.p)
-                    }
-                }
+
+                let status: Status = ciborium::from_reader(&data[..]).unwrap();
+                println!("status: r={}, p={}\r", status.r, status.p)
             }
             Ok(None) => {
                 println!("Did not receive ACK payload.\r");

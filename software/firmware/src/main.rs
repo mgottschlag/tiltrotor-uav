@@ -34,7 +34,7 @@ async fn main(spawner: Spawner) {
 pub async fn radio_interrupt(mut radio: Radio, mut radio_irq: RadioIrq, engines: EnginePwm) {
     loop {
         radio_irq.wait_for_low().await;
-        let mut status = protocol::Status { r: 0.0, p: 0.0 };
+        let mut status = protocol::Status { r: 0.5, p: 2.0 };
         match radio.poll(&status) {
             None => {}
             Some(cmd) => {
