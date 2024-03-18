@@ -14,6 +14,19 @@ mod radio;
 
 use radio::Radio;
 
+const KEY_ARROW_ENTER: Event = Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+const KEY_ARROW_ESC: Event = Event::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+const KEY_ARROW_CTRL_C: Event =
+    Event::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
+const KEY_ARROW_CTRL_D: Event =
+    Event::Key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL));
+const KEY_ARROW_W: Event = Event::Key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
+const KEY_ARROW_S: Event = Event::Key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE));
+const KEY_ARROW_UP: Event = Event::Key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+const KEY_ARROW_DOWN: Event = Event::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+const KEY_ARROW_LEFT: Event = Event::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+const KEY_ARROW_RIGHT: Event = Event::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 struct Opts {
@@ -71,7 +84,7 @@ impl Remote {
     }
 
     async fn run(&mut self) {
-        let mut thrust: [u8; 4] = [0; 4];
+        let mut thrust: [i16; 4] = [0; 4];
         let mut pose: [i8; 2] = [0; 2];
         let mut last_event = SystemTime::now();
         let mut pressed = false;
@@ -84,108 +97,75 @@ impl Remote {
                     match maybe_event {
                         Some(Ok(event)) => {
                             //println!("Event::{:?}\r", event);
-                            match event {
-                                // add newline to terminal
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Enter,
-                                }) => {
-                                    println!("\r");
-                                }
 
-                                // stop remote
-                                // - ESC
-                                // - CTRL+C
-                                // - CTRL+D
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Esc,
-                                }) | Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::CONTROL,
-                                    code: KeyCode::Char('c'),
-                                }) | Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::CONTROL,
-                                    code: KeyCode::Char('d'),
-                                }) => {
-                                    self.stop().await;
-                                    break;
-                                },
+                            // add newline to terminal
+                            if event == KEY_ARROW_ENTER.into() {
+                                println!("\r");
+                            }
 
-                                // control thrust
-                                // - 'w' to go up
-                                // - 's' to go down
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('w'),
-                                }) => {
-                                    thrust = thrust.map(|e| {e+10});
-                                    self.cmd_tx.send(Command {
-                                        thrust: thrust,
-                                        pose: pose,
-                                    }).await.unwrap();
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Char('s'),
-                                }) => {
-                                    thrust = thrust.map(|e| {e-10});
-                                    self.cmd_tx.send(Command {
-                                        thrust: thrust,
-                                        pose: pose,
-                                    }).await.unwrap();
-                                }
+                            // stop remote
+                            // - ESC
+                            // - CTRL+C
+                            // - CTRL+D
+                            if event == KEY_ARROW_ESC.into() || event == KEY_ARROW_CTRL_C.into() || event == KEY_ARROW_CTRL_D.into() {
+                                self.stop().await;
+                                break;
+                            }
 
-                                // control pose via arrow keys
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Up,
-                                }) => {
-                                    last_event = SystemTime::now();
-                                    pressed = true;
-                                    pose[0] = 20;
-                                    self.cmd_tx.send(Command {
-                                        thrust: thrust,
-                                        pose: pose,
-                                    }).await.unwrap();
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Down,
-                                }) => {
-                                    last_event = SystemTime::now();
+                            // control thrust
+                            // - 'w' to go up
+                            // - 's' to go down
+                            if event == KEY_ARROW_W.into() {
+                                thrust = thrust.map(|e| {e+10});
+                                self.cmd_tx.send(Command {
+                                    thrust: thrust,
+                                    pose: pose,
+                                }).await.unwrap();
+                            }
+                            if event == KEY_ARROW_S.into() {
+                                thrust = thrust.map(|e| {e-10});
+                                self.cmd_tx.send(Command {
+                                    thrust: thrust,
+                                    pose: pose,
+                                }).await.unwrap();
+                            }
+
+                            // control pose via arrow keys
+                            if event == KEY_ARROW_UP.into() {
+                                last_event = SystemTime::now();
+                                pressed = true;
+                                pose[0] = 20;
+                                self.cmd_tx.send(Command {
+                                    thrust: thrust,
+                                    pose: pose,
+                                }).await.unwrap();
+                            }
+                            if event == KEY_ARROW_DOWN.into() {
+                                last_event = SystemTime::now();
                                     pressed = true;
                                     pose[0] = -20;
                                     self.cmd_tx.send(Command {
                                         thrust: thrust,
                                         pose: pose,
                                     }).await.unwrap();
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Left,
-                                }) => {
-                                    last_event = SystemTime::now();
-                                    pressed = true;
-                                    pose[1] = 20;
-                                    self.cmd_tx.send(Command {
-                                        thrust: thrust,
-                                        pose: pose,
-                                    }).await.unwrap();
-                                }
-                                Event::Key(KeyEvent{
-                                    modifiers: KeyModifiers::NONE,
-                                    code: KeyCode::Right,
-                                }) => {
-                                    last_event = SystemTime::now();
-                                    pressed = true;
-                                    pose[1] = -20;
-                                    self.cmd_tx.send(Command {
-                                        thrust: thrust,
-                                        pose: pose,
-                                    }).await.unwrap();
-                                }
-
-                                _ => {},
+                            }
+                            if event == KEY_ARROW_LEFT.into() {
+                                last_event = SystemTime::now();
+                                pressed = true;
+                                pose[1] = 20;
+                                self.cmd_tx.send(Command {
+                                    thrust: thrust,
+                                    pose: pose,
+                                }).await.unwrap();
+                            }
+                            if event == KEY_ARROW_RIGHT.into() {
+                                last_event = SystemTime::now();
+                                pressed = true;
+                                pose[1] = -20;
+                                self.cmd_tx.send(Command {
+                                    thrust: thrust,
+                                    pose: pose,
+                                }).await.unwrap();
                             }
                         }
                         Some(Err(e)) => println!("Error: {e:?}\r"),

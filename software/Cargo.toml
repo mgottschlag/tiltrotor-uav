@@ -6,6 +6,31 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+
+# tracing
+defmt = "0.3.6"
+defmt-rtt = "0.4.0"
+
+# serializer
+serde = { version = "1.0.197", default-features = false, features = ["derive"] }
+serde_cbor = { version = "0.11.2", default-features = false }
+
+# firmware
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"]}
+cortex-m-rt = "0.7.3"
+embedded-nrf24l01 = { git = "https://github.com/ne0h/embedded-nrf24l01", branch = "ack-payload" }
+panic-probe = { version = "0.3.1", features = ["print-defmt"] }
+
+# remote
+crossterm = { version = "0.27.0", features = [ "event-stream" ] }
+futures = "0.3.30"
+futures-timer = "3.0.3"
+nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "30d1e26" }
+structopt = "0.3.26"
+thiserror = "1.0.58"
+tokio = { version = "1.36", features = [ "full" ] }
+
 [profile]
 [profile.release]
 debug = true

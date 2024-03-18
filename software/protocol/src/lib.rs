@@ -12,7 +12,7 @@ pub struct Status {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Format)]
 pub struct Command {
     // [0..255]
-    pub thrust: [u8; 4],
+    pub thrust: [i16; 4],
     // [-90..90]
     pub pose: [i8; 2],
 }

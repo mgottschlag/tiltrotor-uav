@@ -52,12 +52,9 @@ impl Radio {
         }
     }
 
-    pub async fn send(&mut self, cmd: Command) {
-        /*thrust = thrust.map(|e| min(max(e, 0), 255));
-        let cmd = Command {
-            thrust: thrust.map(|e| min(max(e, 0), 255) as u8),
-            pose: pose.map(|e| min(max(e, -90), 90) as i8),
-        };*/
+    pub async fn send(&mut self, mut cmd: Command) {
+        cmd.thrust = cmd.thrust.map(|e| min(max(e, 0), 255));
+        cmd.pose = cmd.pose.map(|e| min(max(e, -90), 90));
 
         let mut buf = [0u8; 32];
         let writer = SliceWrite::new(&mut buf[..]);

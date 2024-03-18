@@ -7,13 +7,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crossterm = { version = "0.23.0", features = [ "event-stream" ] }
-futures = "0.3.21"
-futures-timer = "3.0.2"
-nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "8e4ebdd" }
 protocol = { path = "../protocol" }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_cbor = { version = "0.10", default-features = false }
-structopt = "0.3.26"
-thiserror = "1.0"
-tokio = { version = "0.2", features = [ "full" ] }
+
+crossterm = { workspace = true }
+futures = { workspace = true }
+futures-timer = { workspace = true }
+nrf24l01-stick-driver = { workspace = true }
+serde = { workspace = true }
+serde_cbor = { workspace = true }
+structopt = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
