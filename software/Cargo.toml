@@ -27,7 +27,8 @@ panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 crossterm = { version = "0.27.0", features = [ "event-stream" ] }
 futures = "0.3.30"
 futures-timer = "3.0.3"
-nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "30d1e26" }
+gilrs = "0.10.6"
+nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "8352dc6" }
 structopt = "0.3.26"
 thiserror = "1.0.58"
 tokio = { version = "1.36", features = [ "full" ] }

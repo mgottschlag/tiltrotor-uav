@@ -9,7 +9,7 @@ pub struct Status {
     pub p: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Format)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Format, Clone)]
 pub struct Command {
     // [0..255]
     pub thrust: [i16; 4],

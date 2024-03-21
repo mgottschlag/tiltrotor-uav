@@ -4,9 +4,11 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::sync::mpsc;
 
+mod gamepad;
 mod keyboard;
 mod radio;
 
+use gamepad::Gamepad;
 use radio::Radio;
 
 #[derive(StructOpt, Debug)]
@@ -24,41 +26,34 @@ struct Opts {
 #[tokio::main]
 async fn main() {
     let opts = Opts::from_args();
-    println!("{opts:?}");
+    println!("Opts: {opts:?}");
 
+    // init command channel
     let (cmd_tx, cmd_rx) = mpsc::channel::<Command>(32);
+
+    // init radio and and send stop command
     let mut radio = Radio::new(opts.device, cmd_rx).await;
-    tokio::spawn(async move { radio.run().await });
+    cmd_tx
+        .send(Command {
+            thrust: [0; 4],
+            pose: [0; 2],
+        })
+        .await
+        .unwrap();
 
-    let mut remote = Remote::new(cmd_tx).await;
-    remote.run().await;
-    disable_raw_mode().unwrap();
-}
+    match Gamepad::init() {
+        None => {
+            println!("Did not find any gamepads - falling back to keyboard");
+            enable_raw_mode().unwrap();
+            keyboard::run(&cmd_tx).await;
+            disable_raw_mode().unwrap();
+        }
+        Some(mut gamepad) => {
+            println!("Found at least one gamepad - waiting for input");
+            tokio::task::spawn_blocking(move || gamepad.run(&cmd_tx));
+        }
+    };
 
-struct Remote {
-    cmd_tx: tokio::sync::mpsc::Sender<Command>,
-}
-
-impl Remote {
-    pub async fn new(cmd_tx: tokio::sync::mpsc::Sender<Command>) -> Self {
-        let mut remote = Remote { cmd_tx };
-        remote.stop().await;
-        enable_raw_mode().unwrap();
-
-        remote
-    }
-
-    async fn stop(&mut self) {
-        self.cmd_tx
-            .send(Command {
-                thrust: [0; 4],
-                pose: [0; 2],
-            })
-            .await
-            .unwrap();
-    }
-
-    async fn run(&mut self) {
-        keyboard::run(&self.cmd_tx).await;
-    }
+    println!("Waiting for commands ...");
+    radio.run().await;
 }
