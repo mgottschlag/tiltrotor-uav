@@ -2,7 +2,7 @@ use gilrs::{Button, Event, EventType, Gilrs};
 use protocol::Command;
 use std::{thread, time};
 
-const NEW_COMMAND_DIFF: i16 = 10;
+const MINIMAL_CHANGE_DIFF: i16 = 20;
 
 pub struct Gamepad {
     gilrs: Gilrs,
@@ -52,7 +52,7 @@ impl Gamepad {
                     _ => {}
                 };
             }
-            if thrust_changed(&new_cmd, &cmd) {
+            if thrust_changed(&new_cmd, &cmd, MINIMAL_CHANGE_DIFF) {
                 cmd_tx.blocking_send(cmd).unwrap();
                 cmd = new_cmd;
             }
@@ -62,12 +62,12 @@ impl Gamepad {
     }
 }
 
-fn thrust_changed(new_cmd: &Command, old_cmd: &Command) -> bool {
+fn thrust_changed(new_cmd: &Command, old_cmd: &Command, minimal_change_diff: i16) -> bool {
     !new_cmd
         .thrust
         .iter()
         .zip(old_cmd.thrust.iter())
-        .all(|(new, old)| (new - old).abs() <= NEW_COMMAND_DIFF)
+        .all(|(new, old)| (new - old).abs() <= minimal_change_diff)
 }
 
 #[cfg(test)]
@@ -80,7 +80,7 @@ mod tests {
             #[test]
             fn $name() {
                 $(
-                    assert!(thrust_changed(&$new_cmd, &$old_cmd));
+                    assert!(thrust_changed(&$new_cmd, &$old_cmd, 10));
                 )*
 
             }
@@ -92,7 +92,7 @@ mod tests {
             #[test]
             fn $name() {
                 $(
-                    assert!(!thrust_changed(&$new_cmd, &$old_cmd));
+                    assert!(!thrust_changed(&$new_cmd, &$old_cmd, 10));
                 )*
 
             }
