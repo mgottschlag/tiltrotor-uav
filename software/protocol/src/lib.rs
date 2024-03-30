@@ -16,3 +16,26 @@ pub struct Command {
     // [-90..90]
     pub pose: [i8; 2],
 }
+
+impl Command {
+    pub fn new() -> Self {
+        Self {
+            thrust: [0; 4],
+            pose: [0; 2],
+        }
+    }
+
+    pub fn with_thrust(&mut self, thrust: [i16; 4]) -> Self {
+        Self {
+            thrust: thrust,
+            pose: self.pose,
+        }
+    }
+
+    pub fn with_pose(&mut self, pose: [i8; 2]) -> Self {
+        Self {
+            thrust: self.thrust,
+            pose: pose,
+        }
+    }
+}

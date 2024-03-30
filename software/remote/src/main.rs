@@ -33,6 +33,13 @@ async fn main() {
 
     // init command channel
     let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(32);
+    cmd_tx
+        .send(Command {
+            thrust: [0; 4],
+            pose: [0; 2],
+        })
+        .await
+        .unwrap();
 
     match Gamepad::init() {
         None => {

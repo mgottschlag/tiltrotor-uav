@@ -1,8 +1,9 @@
-use gilrs::{Button, Event, EventType, Gilrs};
+use gilrs::{Axis, Event, EventType, Gilrs};
 use protocol::Command;
 use std::{thread, time};
 
-const MINIMAL_CHANGE_DIFF: i16 = 20;
+const DEADZONE: i8 = 15;
+const MINIMAL_CHANGE_DIFF: i8 = 9;
 
 pub struct Gamepad {
     gilrs: Gilrs,
@@ -31,43 +32,49 @@ impl Gamepad {
             pose: [0; 2],
         };
 
+        let mut new_cmd = cmd.clone();
         loop {
-            let mut new_cmd = cmd.clone();
             while let Some(event) = self.gilrs.next_event() {
                 match event {
                     Event {
                         id: _,
-                        event: EventType::ButtonChanged(Button::LeftTrigger2, value, _),
+                        event: EventType::AxisChanged(Axis::LeftStickY, value, _),
                         ..
-                    } => {
-                        new_cmd.thrust[0] = (255 as f32 * value) as i16;
-                    }
+                    } => new_cmd.pose[0] = (value * 90 as f32) as i8,
                     Event {
                         id: _,
-                        event: EventType::ButtonChanged(Button::RightTrigger2, value, _),
+                        event: EventType::AxisChanged(Axis::LeftStickX, value, _),
                         ..
-                    } => {
-                        new_cmd.thrust[1] = (255 as f32 * value) as i16;
-                    }
+                    } => new_cmd.pose[1] = (value * 90 as f32) as i8,
                     _ => {}
                 };
             }
-            if thrust_changed(&new_cmd, &cmd, MINIMAL_CHANGE_DIFF) {
-                cmd_tx.blocking_send(cmd).unwrap();
-                cmd = new_cmd;
+            new_cmd = ensure_deadzone(new_cmd, DEADZONE);
+            if ensure_pose_changed(&new_cmd, &cmd, MINIMAL_CHANGE_DIFF) {
+                cmd = new_cmd.clone();
+                cmd_tx.blocking_send(cmd.clone()).unwrap();
             }
 
-            thread::sleep(time::Duration::from_millis(10));
+            thread::sleep(time::Duration::from_millis(1));
         }
     }
 }
 
-fn thrust_changed(new_cmd: &Command, old_cmd: &Command, minimal_change_diff: i16) -> bool {
+fn ensure_deadzone(mut cmd: Command, deadzone: i8) -> Command {
+    cmd.pose.iter_mut().for_each(|value| {
+        if (*value).abs() <= deadzone {
+            *value = 0
+        }
+    });
+    cmd
+}
+
+fn ensure_pose_changed(new_cmd: &Command, old_cmd: &Command, minimal_change_diff: i8) -> bool {
     !new_cmd
-        .thrust
+        .pose
         .iter()
-        .zip(old_cmd.thrust.iter())
-        .all(|(new, old)| (new - old).abs() <= minimal_change_diff)
+        .zip(old_cmd.pose.iter())
+        .all(|(new, old)| (*new - *old).abs() <= minimal_change_diff)
 }
 
 #[cfg(test)]
@@ -75,128 +82,98 @@ mod tests {
 
     use super::*;
 
-    macro_rules! test_positive {
-        ($name:ident, $( $new_cmd:expr, $old_cmd:expr ),* ) => {
+    macro_rules! test_ensure_deadzone {
+        ($name:ident, $( $cmd_in:expr, $cmd_out:expr ),* ) => {
             #[test]
             fn $name() {
                 $(
-                    assert!(thrust_changed(&$new_cmd, &$old_cmd, 10));
+                    let cmd = ensure_deadzone($cmd_in, DEADZONE);
+                    assert!(cmd == $cmd_out);
+                )*
+            }
+        };
+    }
+
+    test_ensure_deadzone!(
+        test_ensure_deadzone_1,
+        Command::new().with_pose([9, 9]),
+        Command::new().with_pose([0, 0])
+    );
+    test_ensure_deadzone!(
+        test_ensure_deadzone_2,
+        Command::new().with_pose([0, 9]),
+        Command::new().with_pose([0, 0])
+    );
+    test_ensure_deadzone!(
+        test_ensure_deadzone_3,
+        Command::new().with_pose([9, 0]),
+        Command::new().with_pose([0, 0])
+    );
+    test_ensure_deadzone!(
+        test_ensure_deadzone_4,
+        Command::new().with_pose([0, 0]),
+        Command::new().with_pose([0, 0])
+    );
+    test_ensure_deadzone!(
+        test_ensure_deadzone_5,
+        Command::new().with_pose([10, 9]),
+        Command::new().with_pose([10, 0])
+    );
+    test_ensure_deadzone!(
+        test_ensure_deadzone_6,
+        Command::new().with_pose([9, 10]),
+        Command::new().with_pose([0, 10])
+    );
+
+    macro_rules! test_ensure_pose_changed {
+        ($name:ident, $( $new_cmd:expr, $old_cmd:expr, $res:expr ),* ) => {
+            #[test]
+            fn $name() {
+                $(
+                    match $res {
+                        true => assert!(ensure_pose_changed(&$new_cmd, &$old_cmd, MINIMAL_CHANGE_DIFF)),
+                        false => assert!(!ensure_pose_changed(&$new_cmd, &$old_cmd, MINIMAL_CHANGE_DIFF))
+                    }
                 )*
 
             }
         };
     }
 
-    macro_rules! test_negative {
-        ($name:ident, $( $new_cmd:expr, $old_cmd:expr ),* ) => {
-            #[test]
-            fn $name() {
-                $(
-                    assert!(!thrust_changed(&$new_cmd, &$old_cmd, 10));
-                )*
-
-            }
-        };
-    }
-
-    test_positive!(
-        test_positive_upper,
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [61; 4],
-            pose: [50, 2],
-        }
+    test_ensure_pose_changed!(
+        test_ensure_pose_changed_1,
+        Command::new().with_pose([50, 0]),
+        Command::new().with_pose([59, 0]),
+        false
     );
-    test_positive!(
-        test_positive_lower,
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [39; 4],
-            pose: [50, 2],
-        }
+    test_ensure_pose_changed!(
+        test_ensure_pose_changed_2,
+        Command::new().with_pose([-50, 0]),
+        Command::new().with_pose([-41, 0]),
+        false
     );
-    test_positive!(
-        test_positive_one_upper,
-        Command {
-            thrust: [50, 50, 50, 50],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [50, 50, 61, 50],
-            pose: [50, 2],
-        }
+    test_ensure_pose_changed!(
+        test_ensure_pose_changed_3,
+        Command::new().with_pose([0, 50]),
+        Command::new().with_pose([0, 59]),
+        false
     );
-    test_positive!(
-        test_positive_one_lower,
-        Command {
-            thrust: [50, 50, 50, 50],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [50, 50, 39, 50],
-            pose: [50, 2],
-        }
+    test_ensure_pose_changed!(
+        test_ensure_pose_changed_4,
+        Command::new().with_pose([0, -50]),
+        Command::new().with_pose([0, -41]),
+        false
     );
-
-    test_negative!(
-        test_negative_equals,
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        }
+    test_ensure_pose_changed!(
+        test_ensure_pose_changed_5,
+        Command::new().with_pose([-50, 50]),
+        Command::new().with_pose([-59, 60]),
+        true
     );
-    test_negative!(
-        test_negative_upper,
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [60; 4],
-            pose: [50, 2],
-        }
-    );
-    test_negative!(
-        test_negative_lower,
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [40; 4],
-            pose: [50, 2],
-        }
-    );
-    test_negative!(
-        test_negative_one_upper,
-        Command {
-            thrust: [50, 60, 50, 50],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        }
-    );
-    test_negative!(
-        test_negative_one_lower,
-        Command {
-            thrust: [40, 50, 50, 50],
-            pose: [50, 2],
-        },
-        Command {
-            thrust: [50; 4],
-            pose: [50, 2],
-        }
+    test_ensure_pose_changed!(
+        test_ensure_pose_changed_6,
+        Command::new().with_pose([50, -50]),
+        Command::new().with_pose([41, -40]),
+        true
     );
 }
