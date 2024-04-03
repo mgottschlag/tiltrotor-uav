@@ -2,7 +2,6 @@ use nrf24l01_stick_driver::{
     Configuration, CrcMode, DataRate, Receiver, MAX_PAYLOAD_LEN, NRF24L01,
 };
 use protocol::{Command, Status};
-use std::cmp::{max, min};
 use std::path::PathBuf;
 
 pub struct Radio {
@@ -51,8 +50,8 @@ impl Radio {
     }
 
     pub async fn send(&mut self, mut cmd: Command) {
-        cmd.thrust = cmd.thrust.map(|e| min(max(e, 0), 255));
-        cmd.pose = cmd.pose.map(|e| min(max(e, -90), 90));
+        cmd.thrust = cmd.thrust.map(|e| e.clamp(0, 255));
+        cmd.pose = cmd.pose.map(|e| e.clamp(-0.1, 1.0));
 
         let mut buf = Vec::with_capacity(MAX_PAYLOAD_LEN);
         ciborium::into_writer(&cmd, &mut buf).unwrap();

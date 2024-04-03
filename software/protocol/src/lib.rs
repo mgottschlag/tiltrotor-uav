@@ -13,15 +13,15 @@ pub struct Status {
 pub struct Command {
     // [0..255]
     pub thrust: [i16; 4],
-    // [-90..90]
-    pub pose: [i8; 2],
+    // [-1.0..1.0]
+    pub pose: [f32; 2],
 }
 
 impl Command {
     pub fn new() -> Self {
         Self {
             thrust: [0; 4],
-            pose: [0; 2],
+            pose: [0.0; 2],
         }
     }
 
@@ -32,7 +32,7 @@ impl Command {
         }
     }
 
-    pub fn with_pose(&mut self, pose: [i8; 2]) -> Self {
+    pub fn with_pose(&mut self, pose: [f32; 2]) -> Self {
         Self {
             thrust: self.thrust,
             pose: pose,
