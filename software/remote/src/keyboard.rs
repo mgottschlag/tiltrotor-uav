@@ -4,28 +4,22 @@ use futures_timer::Delay;
 use protocol::Command;
 use std::time::{Duration, SystemTime};
 
-const KEY_ARROW_ENTER: Event = Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-const KEY_ARROW_ESC: Event = Event::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-const KEY_ARROW_CTRL_C: Event =
-    Event::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
-const KEY_ARROW_CTRL_D: Event =
-    Event::Key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL));
-const KEY_ARROW_W: Event = Event::Key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::NONE));
-const KEY_ARROW_S: Event = Event::Key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::NONE));
-const KEY_ARROW_UP: Event = Event::Key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
-const KEY_ARROW_DOWN: Event = Event::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-const KEY_ARROW_LEFT: Event = Event::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
-const KEY_ARROW_RIGHT: Event = Event::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+const KEY_ESC: Event = Event::Key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+const KEY_CTRL_C: Event = Event::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
+const KEY_CTRL_D: Event = Event::Key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL));
+const KEY_UP: Event = Event::Key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+const KEY_DOWN: Event = Event::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+const KEY_LEFT: Event = Event::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+const KEY_RIGHT: Event = Event::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+
+const SCALE_POSE: f32 = 0.2;
 
 pub async fn run(cmd_tx: &tokio::sync::mpsc::Sender<Command>) {
     let mut reader = EventStream::new();
-
-    let mut thrust: [i16; 4] = [0; 4];
-    let mut pose: [i8; 2] = [0; 2];
-    let mut last_event = SystemTime::now();
-    let mut pressed = false;
     println!("Listening for packets:\r");
 
+    let mut last_event = SystemTime::now();
+    let mut last_cmd = Command::new();
     loop {
         let delay = Delay::new(Duration::from_millis(10)).fuse();
         let event = reader.next().fuse();
@@ -35,80 +29,37 @@ pub async fn run(cmd_tx: &tokio::sync::mpsc::Sender<Command>) {
                     Some(Ok(event)) => {
                         //println!("Event::{:?}\r", event);
 
-                        // add newline to terminal
-                        if event == KEY_ARROW_ENTER.into() {
-                            println!("\r");
-                        }
-
                         // stop remote
                         // - ESC
                         // - CTRL+C
                         // - CTRL+D
-                        if event == KEY_ARROW_ESC.into() || event == KEY_ARROW_CTRL_C.into() || event == KEY_ARROW_CTRL_D.into() {
-                            cmd_tx
-            .send(Command {
-                thrust: [0; 4],
-                pose: [0; 2],
-            })
-            .await
-            .unwrap();
+                        if event == KEY_ESC.into() || event == KEY_CTRL_C.into() || event == KEY_CTRL_D.into() {
+                            cmd_tx.send(Command::new()).await.unwrap();
                             break;
                         }
 
-                        // control thrust
-                        // - 'w' to go up
-                        // - 's' to go down
-                        if event == KEY_ARROW_W.into() {
-                            thrust = thrust.map(|e| {e+10});
-                            cmd_tx.send(Command {
-                                thrust: thrust,
-                                pose: pose,
-                            }).await.unwrap();
-                        }
-                        if event == KEY_ARROW_S.into() {
-                            thrust = thrust.map(|e| {e-10});
-                            cmd_tx.send(Command {
-                                thrust: thrust,
-                                pose: pose,
-                            }).await.unwrap();
-                        }
+                        {
+                            let mut cmd = last_cmd.clone();
+                            last_event = SystemTime::now();
 
-                        // control pose via arrow keys
-                        if event == KEY_ARROW_UP.into() {
-                            last_event = SystemTime::now();
-                            pressed = true;
-                            pose[0] = 20;
-                            cmd_tx.send(Command {
-                                thrust: thrust,
-                                pose: pose,
-                            }).await.unwrap();
-                        }
-                        if event == KEY_ARROW_DOWN.into() {
-                            last_event = SystemTime::now();
-                                pressed = true;
-                                pose[0] = -20;
-                                cmd_tx.send(Command {
-                                    thrust: thrust,
-                                    pose: pose,
-                                }).await.unwrap();
-                        }
-                        if event == KEY_ARROW_LEFT.into() {
-                            last_event = SystemTime::now();
-                            pressed = true;
-                            pose[1] = 20;
-                            cmd_tx.send(Command {
-                                thrust: thrust,
-                                pose: pose,
-                            }).await.unwrap();
-                        }
-                        if event == KEY_ARROW_RIGHT.into() {
-                            last_event = SystemTime::now();
-                            pressed = true;
-                            pose[1] = -20;
-                            cmd_tx.send(Command {
-                                thrust: thrust,
-                                pose: pose,
-                            }).await.unwrap();
+                            // control pose via arrow keys
+                            if event == KEY_UP.into() {
+                                cmd = Command::new().with_pose([1.0*SCALE_POSE, 0.0]);
+                            }
+                            if event == KEY_DOWN.into() {
+                                cmd = Command::new().with_pose([-1.0*SCALE_POSE, 0.0]);
+                            }
+                            if event == KEY_LEFT.into() {
+                                cmd = Command::new().with_pose([0.0*SCALE_POSE, -1.0]);
+                            }
+                            if event == KEY_RIGHT.into() {
+                                cmd = Command::new().with_pose([0.0*SCALE_POSE, 1.0]);
+                            }
+
+                            if cmd != last_cmd {
+                                cmd_tx.send(cmd.clone()).await.unwrap();
+                                last_cmd = cmd;
+                            }
                         }
                     }
                     Some(Err(e)) => println!("Error: {e:?}\r"),
@@ -116,13 +67,13 @@ pub async fn run(cmd_tx: &tokio::sync::mpsc::Sender<Command>) {
                 }
             }
             _ = delay => {
-                if pressed && last_event.elapsed().unwrap() > Duration::new(0, 500_000_000) {
-                    pressed = false;
-                    pose = [0; 2];
-                    cmd_tx.send(Command {
-                        thrust: thrust,
-                        pose: pose,
-                    }).await.unwrap();
+                // There is no dedicated 'release' event.
+                // Therefore, we have to check periodically if there is still any key pressed.
+                if last_event.elapsed().unwrap() > Duration::new(0, 500_000_000) {
+                    if last_cmd != Command::new() {
+                        cmd_tx.send(Command::new()).await.unwrap();
+                        last_cmd = Command::new();
+                    }
                 }
             },
         }

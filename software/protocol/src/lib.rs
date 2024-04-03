@@ -38,4 +38,11 @@ impl Command {
             pose: pose,
         }
     }
+
+    pub fn scale_pose(&mut self, scale: f32) -> Self {
+        Self {
+            thrust: self.thrust,
+            pose: self.pose.map(|e| e * scale),
+        }
+    }
 }

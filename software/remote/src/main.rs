@@ -26,11 +26,6 @@ struct Opts {
     offline: bool,
 }
 
-enum InputType {
-    Keyboard,
-    Gamepad,
-}
-
 #[tokio::main]
 async fn main() {
     let opts = Opts::from_args();
@@ -46,7 +41,7 @@ async fn main() {
         .await
         .unwrap();
 
-    let input_type = match Gamepad::init() {
+    match Gamepad::init() {
         None => {
             println!("Did not find any gamepads - falling back to keyboard");
             tokio::spawn(async move {
@@ -65,8 +60,9 @@ async fn main() {
         true => {
             println!("Waiting for commands in offline mode ...");
             loop {
-                let cmd = cmd_rx.recv().await.unwrap();
-                println!("Got {cmd:?}\r");
+                if let Some(cmd) = cmd_rx.recv().await {
+                    println!("Got {cmd:?}\r");
+                }
             }
         }
         false => {
