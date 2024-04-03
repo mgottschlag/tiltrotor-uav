@@ -73,7 +73,9 @@ impl Radio {
 
             match from_mut_slice(&mut payload_array[0..payload.len()]) {
                 // TODO: input validation
-                Ok(Some(cmd)) => return cmd,
+                Ok(Some(cmd)) => {
+                    return cmd;
+                }
                 Ok(None) => {
                     info!("Failed to deserialize command");
                     continue;

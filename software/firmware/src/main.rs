@@ -31,14 +31,15 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-pub async fn radio_interrupt(mut radio: Radio, mut radio_irq: RadioIrq, engines: EnginePwm) {
+pub async fn radio_interrupt(mut radio: Radio, mut radio_irq: RadioIrq, mut engines: EnginePwm) {
     loop {
         radio_irq.wait_for_low().await;
-        let mut status = protocol::Status { r: 0.5, p: 2.0 };
+        let status = protocol::Status { r: 0.5, p: 2.0 };
         match radio.poll(&status) {
             None => {}
             Some(cmd) => {
-                info!("Got command: {}", cmd)
+                info!("Got command: {}", cmd);
+                engines.update(&cmd);
             }
         }
     }
