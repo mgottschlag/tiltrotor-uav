@@ -5,11 +5,15 @@ use defmt::info;
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
-use embassy_stm32::peripherals::{PA10, PA2, PA3, PA8, PA9, PC13, PC14, SPI1, TIM5};
+use embassy_stm32::i2c::I2c;
+use embassy_stm32::peripherals::{I2C1, PA10, PA2, PA3, PA8, PA9, PC13, PC14, SPI1, TIM5};
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
 use embassy_stm32::timer::Channel;
+use embassy_stm32::{bind_interrupts, i2c, peripherals};
+
+pub type DisplayI2c = I2c<'static, I2C1>;
 
 // pub type RadioSck = PA5;
 // pub type RadioMiso = PA6;
@@ -19,7 +23,13 @@ pub type RadioCe = Output<'static, PA9>;
 pub type RadioIrq = ExtiInput<'static, PA10>;
 pub type RadioSpi = Spi<'static, SPI1, NoDma, NoDma>;
 
+bind_interrupts!(struct Irqs {
+    I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
+    I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
+});
+
 pub struct Board {
+    pub display_i2c: DisplayI2c,
     pub engines: EnginePwm,
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
@@ -31,7 +41,19 @@ impl Board {
     pub fn init() -> Board {
         let p = embassy_stm32::init(Default::default());
 
-        // pwm
+        // init display
+        let display_i2c = I2c::new(
+            p.I2C1,
+            p.PB8,
+            p.PB9,
+            Irqs,
+            NoDma,
+            NoDma,
+            hz(400_000),
+            Default::default(),
+        );
+
+        // init pwm
         let c1 = PwmPin::new_ch1(p.PA0, OutputType::PushPull);
         let c2 = PwmPin::new_ch2(p.PA1, OutputType::PushPull);
         let pwm = SimplePwm::new(
@@ -72,6 +94,7 @@ impl Board {
         );
 
         Board {
+            display_i2c,
             engines,
             radio_spi,
             radio_cs,

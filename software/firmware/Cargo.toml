@@ -11,15 +11,18 @@ cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }
-
+embedded-graphics = { workspace = true }
 embedded-nrf24l01 = { workspace = true }
+heapless = { workspace = true }
 libm = { workspace = true }
 panic-probe = { workspace = true }
 serde = { workspace = true }
 serde_cbor = { workspace = true, features = ["unsealed_read_write"] }
+ssd1306 = { workspace = true }
 
 embassy-executor = { version = "0.5.0", path = "../3rdparty/embassy/embassy-executor", features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
 embassy-stm32    = { version = "0.1.0", path = "../3rdparty/embassy/embassy-stm32", features = ["defmt", "unstable-pac", "time-driver-any", "stm32f411re", "memory-x", "exti", "chrono"], optional = true  }
+embassy-sync     = { version = "0.5.0", path = "../3rdparty/embassy/embassy-sync",     features = ["defmt"] }
 embassy-time     = { version = "0.3.0", path = "../3rdparty/embassy/embassy-time",     features = ["defmt", "defmt-timestamp-uptime"] }
 
 [profile.release]
