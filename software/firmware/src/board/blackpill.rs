@@ -1,4 +1,5 @@
 //use super::EnginePwm;
+use super::Direction;
 
 use defmt::info;
 use embassy_stm32::dma::NoDma;
@@ -9,8 +10,6 @@ use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
 use embassy_stm32::timer::Channel;
-use libm::fabsf;
-use protocol::Command;
 
 // pub type RadioSck = PA5;
 // pub type RadioMiso = PA6;
@@ -134,27 +133,45 @@ impl EnginePwm {
         self.pwm.set_duty(Channel::Ch2, scaled_duty[1]);
     }
 
-    pub fn update(&mut self, cmd: &Command) {
-        match cmd.pose[0] {
-            _ if cmd.pose[0] > 0.0 => {
+    pub fn update(&mut self, motor_left: Direction, motor_right: Direction) {
+        info!("motor_left={:?}, motor_right={:?}", motor_left, motor_right);
+
+        let mut duty_left = 0.0;
+        let mut duty_right = 0.0;
+
+        match motor_left {
+            Direction::Forward(duty) => {
                 self.int1.set_high();
                 self.int2.set_low();
-                self.int3.set_low();
-                self.int4.set_high();
+                duty_left = duty;
             }
-            _ if cmd.pose[0] < 0.0 => {
+            Direction::Backward(duty) => {
                 self.int1.set_low();
                 self.int2.set_high();
-                self.int3.set_high();
-                self.int4.set_low();
+                duty_left = duty;
             }
-            _ => {
+            Direction::Stop => {
                 self.int1.set_low();
                 self.int2.set_low();
+            }
+        }
+        match motor_right {
+            Direction::Forward(duty) => {
+                self.int3.set_low();
+                self.int4.set_high();
+                duty_right = duty;
+            }
+            Direction::Backward(duty) => {
+                self.int3.set_high();
+                self.int4.set_low();
+                duty_right = duty;
+            }
+            Direction::Stop => {
                 self.int3.set_low();
                 self.int4.set_low();
             }
-        };
-        self.set_duty([fabsf(cmd.pose[0]); 2]);
+        }
+
+        self.set_duty([duty_left, duty_right]);
     }
 }

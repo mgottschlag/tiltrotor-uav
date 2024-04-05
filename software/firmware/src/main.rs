@@ -4,12 +4,13 @@
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_time::Timer;
+use libm::fabsf;
 use {defmt_rtt as _, panic_probe as _};
 
 mod board;
 mod radio;
 
-use board::{Board, EnginePwm};
+use board::{Board, Direction, EnginePwm};
 use radio::{Radio, RadioIrq};
 
 #[embassy_executor::main]
@@ -39,7 +40,42 @@ pub async fn radio_interrupt(mut radio: Radio, mut radio_irq: RadioIrq, mut engi
             None => {}
             Some(cmd) => {
                 info!("Got command: {}", cmd);
-                engines.update(&cmd);
+
+                // handle stop
+                if cmd.pose.into_iter().all(|e| e == 0.0) {
+                    engines.update(Direction::Stop, Direction::Stop);
+                    continue;
+                }
+
+                let duty_y = fabsf(cmd.pose[1]);
+                let duty_x = fabsf(cmd.pose[0]);
+
+                // handle rotation
+                if cmd.pose[0] == 0.0 {
+                    match cmd.pose[1] {
+                        _ if cmd.pose[1] > 0.0 => {
+                            engines.update(Direction::Backward(duty_y), Direction::Forward(duty_y))
+                        }
+                        _ if cmd.pose[1] < 0.0 => {
+                            engines.update(Direction::Forward(duty_y), Direction::Backward(duty_y))
+                        }
+                        _ => engines.update(Direction::Stop, Direction::Stop),
+                    };
+                    continue;
+                }
+
+                // handle movement
+                match cmd.pose[0] {
+                    _ if cmd.pose[0] > 0.0 => engines.update(
+                        Direction::Forward((1.0 - duty_y) * duty_x),
+                        Direction::Forward(duty_x),
+                    ),
+                    _ if cmd.pose[0] < 0.0 => engines.update(
+                        Direction::Backward(duty_x),
+                        Direction::Backward((1.0 - duty_y) * duty_x),
+                    ),
+                    _ => engines.update(Direction::Stop, Direction::Stop),
+                }
             }
         }
     }
