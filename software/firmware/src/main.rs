@@ -75,12 +75,8 @@ pub async fn radio_interrupt(
     loop {
         radio_irq.wait_for_low().await;
 
-        // Clone latest status to avoid hanging too long in blocking mode.
-        let mut status = Status::new();
-        {
-            let status_unlocked = STATUS.lock().await;
-            status = status_unlocked.clone();
-        }
+        // Clone latest status to avoid hanging too long in blocking mode while polling from radio.
+        let status = STATUS.lock().await.clone();
 
         match radio.poll(&status) {
             None => {}
