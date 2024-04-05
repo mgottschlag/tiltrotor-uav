@@ -26,6 +26,7 @@ static CLEAR_STYLE: PrimitiveStyle<BinaryColor> = PrimitiveStyleBuilder::new()
 
 pub enum Event {
     Command(protocol::Command),
+    Battery(f32),
 }
 
 #[embassy_executor::task]
@@ -48,6 +49,10 @@ pub async fn handle(i2c: DisplayI2c, event_channel: &'static EventChannel) {
                 )
                 .unwrap();
                 0
+            }
+            Event::Battery(voltage) => {
+                write!(&mut msg, "Bat:  {} V", round(voltage)).unwrap();
+                20
             }
         };
 

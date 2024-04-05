@@ -13,7 +13,7 @@ mod board;
 mod display;
 mod radio;
 
-use board::{Board, Direction, EnginePwm};
+use board::{BatteryMonitor, Board, Direction, EnginePwm};
 use display::{Event, EventChannel};
 use radio::{Radio, RadioIrq};
 
@@ -31,6 +31,14 @@ async fn main(spawner: Spawner) {
     DISPLAY_EVENT_CHANNEL
         .send(Event::Command(Command::new()))
         .await;
+
+    info!("Setting up battery monitor ...");
+    spawner
+        .spawn(battery_monitor(
+            board.battery_monitor,
+            &DISPLAY_EVENT_CHANNEL,
+        ))
+        .unwrap();
 
     info!("Setting up radio ...");
     let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce);
@@ -105,5 +113,17 @@ pub async fn radio_interrupt(
                 }
             }
         }
+    }
+}
+
+#[embassy_executor::task]
+pub async fn battery_monitor(
+    mut battery_monitor: BatteryMonitor,
+    event_channel: &'static EventChannel,
+) {
+    loop {
+        let voltage = battery_monitor.read();
+        event_channel.send(Event::Battery(voltage)).await;
+        Timer::after_secs(10).await;
     }
 }

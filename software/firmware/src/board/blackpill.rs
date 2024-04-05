@@ -1,20 +1,24 @@
 //use super::EnginePwm;
 use super::Direction;
 
+use cortex_m::prelude::_embedded_hal_blocking_delay_DelayUs;
 use defmt::info;
+use embassy_stm32::adc::{Adc, VrefInt};
 use embassy_stm32::dma::NoDma;
 use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
 use embassy_stm32::i2c::I2c;
-use embassy_stm32::peripherals::{I2C1, PA10, PA2, PA3, PA8, PA9, PC13, PC14, SPI1, TIM5};
+use embassy_stm32::peripherals::{
+    ADC1, I2C1, PA10, PA2, PA3, PA4, PA8, PA9, PC13, PC14, SPI1, TIM5,
+};
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
 use embassy_stm32::timer::Channel;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
+use embassy_time::Delay;
 
 pub type DisplayI2c = I2c<'static, I2C1>;
-
 // pub type RadioSck = PA5;
 // pub type RadioMiso = PA6;
 // pub type RadioMosi = PA7;
@@ -35,6 +39,7 @@ pub struct Board {
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
     pub radio_irq: RadioIrq,
+    pub battery_monitor: BatteryMonitor,
 }
 
 impl Board {
@@ -52,6 +57,11 @@ impl Board {
             hz(400_000),
             Default::default(),
         );
+
+        // init battery adc
+        let mut battery_delay = Delay;
+        let battery_adc = Adc::new(p.ADC1, &mut battery_delay);
+        let battery_monitor = BatteryMonitor::init(battery_adc, battery_delay, p.PA4);
 
         // init pwm
         let c1 = PwmPin::new_ch1(p.PA0, OutputType::PushPull);
@@ -100,6 +110,7 @@ impl Board {
             radio_cs,
             radio_ce,
             radio_irq,
+            battery_monitor,
         }
     }
 }
@@ -196,5 +207,23 @@ impl EnginePwm {
         }
 
         self.set_duty([duty_left, duty_right]);
+    }
+}
+
+pub struct BatteryMonitor {
+    adc: Adc<'static, ADC1>,
+    pin: PA4,
+}
+
+impl BatteryMonitor {
+    pub fn init(adc: Adc<'static, ADC1>, mut delay: Delay, pin: PA4) -> Self {
+        adc.enable_vrefint();
+        delay.delay_us(VrefInt::start_time_us());
+        Self { adc, pin }
+    }
+
+    pub fn read(&mut self) -> f32 {
+        let v = self.adc.read(&mut self.pin) as f32;
+        v * 996.0 / 274.4 / 1000.0
     }
 }
