@@ -3,10 +3,21 @@
 use defmt::Format;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Status {
-    pub r: f32,
-    pub p: f32,
+    pub r: f32, // roll
+    pub p: f32, // pitch
+    pub b: f32, // battery
+}
+
+impl Status {
+    pub fn new() -> Self {
+        Self {
+            r: 0.0,
+            p: 0.0,
+            b: 0.0,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Format, Clone)]

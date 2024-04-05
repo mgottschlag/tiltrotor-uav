@@ -70,7 +70,10 @@ impl Radio {
                 println!("Received ACK payload: {data:?}. len={size}\r");
 
                 let status: Status = ciborium::from_reader(&data[..]).unwrap();
-                println!("status: r={}, p={}\r", status.r, status.p)
+                println!(
+                    "roll={}, pitch={}, battery={}\r",
+                    status.r, status.p, status.b
+                );
             }
             Ok(None) => {
                 println!("Did not receive ACK payload.\r");

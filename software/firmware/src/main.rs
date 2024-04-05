@@ -3,10 +3,12 @@
 
 use defmt::*;
 use embassy_executor::Spawner;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
+use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
 use libm::fabsf;
-use protocol::Command;
+use protocol::{Command, Status};
 use {defmt_rtt as _, panic_probe as _};
 
 mod board;
@@ -18,6 +20,11 @@ use display::{Event, EventChannel};
 use radio::{Radio, RadioIrq};
 
 static DISPLAY_EVENT_CHANNEL: EventChannel = Channel::new();
+static STATUS: Mutex<CriticalSectionRawMutex, Status> = Mutex::new(Status {
+    r: 0.0,
+    p: 0.0,
+    b: 0.0,
+});
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -67,7 +74,14 @@ pub async fn radio_interrupt(
 ) {
     loop {
         radio_irq.wait_for_low().await;
-        let status = protocol::Status { r: 0.5, p: 2.0 };
+
+        // Clone latest status to avoid hanging too long in blocking mode.
+        let mut status = Status::new();
+        {
+            let status_unlocked = STATUS.lock().await;
+            status = status_unlocked.clone();
+        }
+
         match radio.poll(&status) {
             None => {}
             Some(cmd) => {
@@ -123,6 +137,10 @@ pub async fn battery_monitor(
 ) {
     loop {
         let voltage = battery_monitor.read();
+        {
+            let mut status_unlocked = STATUS.lock().await;
+            status_unlocked.b = voltage;
+        }
         event_channel.send(Event::Battery(voltage)).await;
         Timer::after_secs(10).await;
     }
