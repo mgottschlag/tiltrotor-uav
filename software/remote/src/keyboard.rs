@@ -50,10 +50,10 @@ pub async fn run(cmd_tx: &tokio::sync::mpsc::Sender<Command>) {
                                 cmd = Command::new().with_pose([-1.0*SCALE_POSE, 0.0]);
                             }
                             if event == KEY_LEFT.into() {
-                                cmd = Command::new().with_pose([0.0*SCALE_POSE, -1.0]);
+                                cmd = Command::new().with_pose([0.0*SCALE_POSE, -0.2]);
                             }
                             if event == KEY_RIGHT.into() {
-                                cmd = Command::new().with_pose([0.0*SCALE_POSE, 1.0]);
+                                cmd = Command::new().with_pose([0.0*SCALE_POSE, 0.2]);
                             }
 
                             if cmd != last_cmd {
