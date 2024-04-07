@@ -9,7 +9,8 @@ use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::peripherals::{
-    ADC1, I2C1, PA10, PA4, PA8, PA9, PB2, PC13, PC14, PC15, SPI1, TIM5,
+    ADC1, I2C1, PA10, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14, PB15, PB2, PB3, PB4, PB5, PC13,
+    PC14, PC15, SPI1, SPI2, SPI3, TIM5,
 };
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
@@ -18,18 +19,27 @@ use embassy_stm32::timer::Channel;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
 
-pub type DisplayI2c = I2c<'static, I2C1>;
-type EngineInt1 = Output<'static, PB2>;
-type EngineInt2 = Output<'static, PC13>;
-type EngineInt3 = Output<'static, PC14>;
-type EngineInt4 = Output<'static, PC15>;
-// pub type RadioSck = PA5;
-// pub type RadioMiso = PA6;
-// pub type RadioMosi = PA7;
+type RadioSck = PA5;
+type RadioMiso = PA6;
+type RadioMosi = PA7;
 pub type RadioCs = Output<'static, PA8>;
 pub type RadioCe = Output<'static, PA9>;
 pub type RadioIrq = ExtiInput<'static, PA10>;
+type EngineInt1 = Output<'static, PB2>;
+type StorageSck = PB3;
+type StorageMiso = PB4;
+type StorageMosi = PB5;
+type ImuSck = PB13;
+type ImuMiso = PB14;
+type ImuMosi = PB15;
+type EngineInt2 = Output<'static, PC13>;
+type EngineInt3 = Output<'static, PC14>;
+type EngineInt4 = Output<'static, PC15>;
+
+pub type DisplayI2c = I2c<'static, I2C1>;
 pub type RadioSpi = Spi<'static, SPI1, NoDma, NoDma>;
+pub type ImuSpi = Spi<'static, SPI2, NoDma, NoDma>;
+pub type StorageSpi = Spi<'static, SPI3, NoDma, NoDma>;
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
@@ -90,9 +100,9 @@ impl Board {
         // init radio
         let mut radio_spi_config = SpiConfig::default();
         radio_spi_config.frequency = hz(2_000_000);
-        let radio_sck = p.PA5;
-        let radio_miso = p.PA6;
-        let radio_mosi = p.PA7;
+        let radio_sck: RadioSck = p.PA5;
+        let radio_miso: RadioMiso = p.PA6;
+        let radio_mosi: RadioMosi = p.PA7;
         let radio_cs = Output::new(p.PA8, Level::High, Speed::VeryHigh);
         let radio_ce = Output::new(p.PA9, Level::High, Speed::VeryHigh);
         let radio_irq = ExtiInput::new(Input::new(p.PA10, Pull::Up), p.EXTI10);
