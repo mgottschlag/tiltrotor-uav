@@ -9,8 +9,8 @@ use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::peripherals::{
-    ADC1, I2C1, PA10, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14, PB15, PB2, PB3, PB4, PB5, PC13,
-    PC14, PC15, SPI1, SPI2, SPI3, TIM5,
+    ADC1, I2C1, PA0, PA1, PA10, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14, PB15, PB2, PB3, PB4, PB5,
+    PC13, PC14, PC15, SPI1, SPI2, SPI3, TIM5,
 };
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
@@ -19,6 +19,8 @@ use embassy_stm32::timer::Channel;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
 
+type PwmC1 = PA0;
+type PwmC2 = PA1;
 type RadioSck = PA5;
 type RadioMiso = PA6;
 type RadioMosi = PA7;
@@ -78,8 +80,10 @@ impl Board {
         let battery_monitor = BatteryMonitor::init(battery_adc, battery_delay, p.PA4);
 
         // init pwm
-        let c1 = PwmPin::new_ch1(p.PA0, OutputType::PushPull);
-        let c2 = PwmPin::new_ch2(p.PA1, OutputType::PushPull);
+        let pwm_c1: PwmC1 = p.PA0;
+        let pwm_c2: PwmC2 = p.PA1;
+        let c1 = PwmPin::new_ch1(pwm_c1, OutputType::PushPull);
+        let c2 = PwmPin::new_ch2(pwm_c2, OutputType::PushPull);
         let pwm = SimplePwm::new(
             p.TIM5,
             Some(c1),
