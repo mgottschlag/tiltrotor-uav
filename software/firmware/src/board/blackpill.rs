@@ -9,7 +9,7 @@ use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::peripherals::{
-    ADC1, I2C1, PA10, PA2, PA3, PA4, PA8, PA9, PC13, PC14, SPI1, TIM5,
+    ADC1, I2C1, PA10, PA4, PA8, PA9, PB2, PC13, PC14, PC15, SPI1, TIM5,
 };
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
@@ -19,6 +19,10 @@ use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
 
 pub type DisplayI2c = I2c<'static, I2C1>;
+type EngineInt1 = Output<'static, PB2>;
+type EngineInt2 = Output<'static, PC13>;
+type EngineInt3 = Output<'static, PC14>;
+type EngineInt4 = Output<'static, PC15>;
 // pub type RadioSck = PA5;
 // pub type RadioMiso = PA6;
 // pub type RadioMosi = PA7;
@@ -77,10 +81,10 @@ impl Board {
         );
         let engines = EnginePwm::init(
             pwm,
-            Output::new(p.PA2, Level::Low, Speed::Medium),
-            Output::new(p.PA3, Level::Low, Speed::Medium),
+            Output::new(p.PB2, Level::Low, Speed::Medium),
             Output::new(p.PC13, Level::Low, Speed::Medium),
             Output::new(p.PC14, Level::Low, Speed::Medium),
+            Output::new(p.PC15, Level::Low, Speed::Medium),
         );
 
         // init radio
@@ -121,19 +125,19 @@ const MINIMAL_DUTY: u16 = 150;
 
 pub struct EnginePwm {
     pwm: SimplePwm<'static, TIM5>,
-    int1: Output<'static, PA2>,
-    int2: Output<'static, PA3>,
-    int3: Output<'static, PC13>,
-    int4: Output<'static, PC14>,
+    int1: EngineInt1,
+    int2: EngineInt2,
+    int3: EngineInt3,
+    int4: EngineInt4,
 }
 
 impl EnginePwm {
     pub fn init(
         mut pwm: SimplePwm<'static, TIM5>,
-        int1: Output<'static, PA2>,
-        int2: Output<'static, PA3>,
-        int3: Output<'static, PC13>,
-        int4: Output<'static, PC14>,
+        int1: EngineInt1,
+        int2: EngineInt2,
+        int3: EngineInt3,
+        int4: EngineInt4,
     ) -> Self {
         pwm.set_duty(Channel::Ch1, 0);
         pwm.set_duty(Channel::Ch2, 0);
