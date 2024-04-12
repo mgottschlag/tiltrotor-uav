@@ -9,8 +9,8 @@ use embassy_stm32::exti::ExtiInput;
 use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::peripherals::{
-    ADC1, I2C1, PA0, PA1, PA10, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14, PB15, PB2, PB3, PB4, PB5,
-    PC13, PC14, PC15, SPI1, SPI2, SPI3, TIM5,
+    ADC1, I2C1, PA0, PA1, PA10, PA15, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14, PB15, PB2, PB3,
+    PB4, PB5, PB8, PB9, PC13, PC14, PC15, SPI1, SPI2, SPI3, TIM5,
 };
 use embassy_stm32::spi::{Config as SpiConfig, Spi};
 use embassy_stm32::time::hz;
@@ -27,20 +27,23 @@ type RadioMosi = PA7;
 pub type RadioCs = Output<'static, PA8>;
 pub type RadioCe = Output<'static, PA9>;
 pub type RadioIrq = ExtiInput<'static, PA10>;
+pub type StorageCs = Output<'static, PA15>;
 type EngineInt1 = Output<'static, PB2>;
 type StorageSck = PB3;
 type StorageMiso = PB4;
 type StorageMosi = PB5;
-type ImuSck = PB13;
-type ImuMiso = PB14;
-type ImuMosi = PB15;
+type DisplaySck = PB8;
+type DisplaySda = PB9;
+// type ImuSck = PB13;
+// type ImuMiso = PB14;
+// type ImuMosi = PB15;
 type EngineInt2 = Output<'static, PC13>;
 type EngineInt3 = Output<'static, PC14>;
 type EngineInt4 = Output<'static, PC15>;
 
 pub type DisplayI2c = I2c<'static, I2C1>;
 pub type RadioSpi = Spi<'static, SPI1, NoDma, NoDma>;
-pub type ImuSpi = Spi<'static, SPI2, NoDma, NoDma>;
+// pub type ImuSpi = Spi<'static, SPI2, NoDma, NoDma>;
 pub type StorageSpi = Spi<'static, SPI3, NoDma, NoDma>;
 
 bind_interrupts!(struct Irqs {
@@ -56,6 +59,8 @@ pub struct Board {
     pub radio_ce: RadioCe,
     pub radio_irq: RadioIrq,
     pub battery_monitor: BatteryMonitor,
+    pub storage_spi: StorageSpi,
+    pub storage_cs: StorageCs,
 }
 
 impl Board {
@@ -63,10 +68,12 @@ impl Board {
         let p = embassy_stm32::init(Default::default());
 
         // init display
+        let display_sck: DisplaySck = p.PB8;
+        let display_sda: DisplaySda = p.PB9;
         let display_i2c = I2c::new(
             p.I2C1,
-            p.PB8,
-            p.PB9,
+            display_sck,
+            display_sda,
             Irqs,
             NoDma,
             NoDma,
@@ -78,6 +85,24 @@ impl Board {
         let mut battery_delay = Delay;
         let battery_adc = Adc::new(p.ADC1, &mut battery_delay);
         let battery_monitor = BatteryMonitor::init(battery_adc, battery_delay, p.PA4);
+
+        // init storage
+        let mut storage_spi_config = SpiConfig::default();
+        storage_spi_config.frequency = hz(250_000); // TODO: 1_000_000 or more?
+
+        let storage_sck: StorageSck = p.PB3;
+        let storage_miso: StorageMiso = p.PB4;
+        let storage_mosi: StorageMosi = p.PB5;
+        let storage_cs: StorageCs = Output::new(p.PA15, Level::High, Speed::VeryHigh);
+        let storage_spi = Spi::new(
+            p.SPI3,
+            storage_sck,
+            storage_mosi,
+            storage_miso,
+            NoDma,
+            NoDma,
+            storage_spi_config,
+        );
 
         // init pwm
         let pwm_c1: PwmC1 = p.PA0;
@@ -129,6 +154,8 @@ impl Board {
             radio_ce,
             radio_irq,
             battery_monitor,
+            storage_spi,
+            storage_cs,
         }
     }
 }

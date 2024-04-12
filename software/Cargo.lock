@@ -707,6 +707,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-sdmmc"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b4ae38d27afe8ffb1c31f82ebe4960f099ac55bbdc35e813a45cade676f2600"
+dependencies = [
+ "byteorder",
+ "embedded-hal 0.2.7",
+ "log",
+]
+
+[[package]]
 name = "embedded-storage"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -735,6 +746,7 @@ dependencies = [
  "embassy-time",
  "embedded-graphics",
  "embedded-nrf24l01",
+ "embedded-sdmmc",
  "heapless 0.8.0",
  "libm",
  "panic-probe",

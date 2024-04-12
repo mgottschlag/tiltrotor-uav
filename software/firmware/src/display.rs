@@ -30,7 +30,7 @@ pub enum Event {
 }
 
 #[embassy_executor::task]
-pub async fn handle(i2c: DisplayI2c, event_channel: &'static EventChannel) {
+pub async fn run(i2c: DisplayI2c, event_channel: &'static EventChannel) {
     let interface = I2CDisplayInterface::new(i2c);
     let mut display = Ssd1306::new(interface, DisplaySize128x64, DisplayRotation::Rotate0)
         .into_buffered_graphics_mode();
