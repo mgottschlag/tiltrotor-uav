@@ -20,6 +20,7 @@ panic-probe = { workspace = true }
 serde = { workspace = true }
 serde_cbor = { workspace = true, features = ["unsealed_read_write"] }
 ssd1306 = { workspace = true }
+thiserror-no-std = { workspace = true }
 
 embassy-executor = { version = "0.5.0", path = "../3rdparty/embassy/embassy-executor", features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
 embassy-stm32    = { version = "0.1.0", path = "../3rdparty/embassy/embassy-stm32", features = ["defmt", "unstable-pac", "time-driver-any", "stm32f411re", "memory-x", "exti", "chrono"], optional = true  }

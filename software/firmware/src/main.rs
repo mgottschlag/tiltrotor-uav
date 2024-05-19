@@ -58,7 +58,7 @@ async fn main(spawner: Spawner) {
         .unwrap();
 
     info!("Setting up radio ...");
-    let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce);
+    let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce).unwrap();
     info!("Done setting up radio");
 
     spawner
@@ -90,7 +90,14 @@ pub async fn radio_interrupt(
         // Clone latest status to avoid hanging too long in blocking mode while polling from radio.
         let status = STATUS.lock().await.clone();
 
-        match radio.poll(&status) {
+        let cmd_opt = match radio.poll(&status) {
+            Ok(cmd) => cmd,
+            Err(_) => {
+                error!("Failed to handle receive of incoming message"); // FIXME: print error (serde_cbor::Error does not implement defmt::Format) -> migrate to ciborium
+                continue;
+            }
+        };
+        match cmd_opt {
             None => {}
             Some(cmd) => {
                 info!("Got command: {}", cmd);
