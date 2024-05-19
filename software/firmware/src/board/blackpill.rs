@@ -1,5 +1,4 @@
-//use super::EnginePwm;
-use super::Direction;
+use super::{Direction, EnginePwm};
 
 use cortex_m::prelude::_embedded_hal_blocking_delay_DelayUs;
 use defmt::info;
@@ -53,7 +52,7 @@ bind_interrupts!(struct Irqs {
 
 pub struct Board {
     pub display_i2c: DisplayI2c,
-    pub engines: EnginePwm,
+    pub engines: BlackpillEnginePwm,
     pub radio_spi: RadioSpi,
     pub radio_cs: RadioCs,
     pub radio_ce: RadioCe,
@@ -118,7 +117,7 @@ impl Board {
             hz(50_000),
             Default::default(),
         );
-        let engines = EnginePwm::init(
+        let engines = BlackpillEnginePwm::init(
             pwm,
             Output::new(p.PB2, Level::Low, Speed::Medium),
             Output::new(p.PC13, Level::Low, Speed::Medium),
@@ -160,11 +159,11 @@ impl Board {
     }
 }
 
-//pub type EnginePwmType = BlackpillEnginePwm;
+pub type EnginePwmType = BlackpillEnginePwm;
 
 const MINIMAL_DUTY: u16 = 150;
 
-pub struct EnginePwm {
+pub struct BlackpillEnginePwm {
     pwm: SimplePwm<'static, TIM5>,
     int1: EngineInt1,
     int2: EngineInt2,
@@ -172,7 +171,7 @@ pub struct EnginePwm {
     int4: EngineInt4,
 }
 
-impl EnginePwm {
+impl BlackpillEnginePwm {
     pub fn init(
         mut pwm: SimplePwm<'static, TIM5>,
         int1: EngineInt1,
@@ -184,7 +183,7 @@ impl EnginePwm {
         pwm.set_duty(Channel::Ch2, 0);
         pwm.enable(Channel::Ch1);
         pwm.enable(Channel::Ch2);
-        EnginePwm {
+        BlackpillEnginePwm {
             pwm,
             int1,
             int2,
@@ -211,8 +210,10 @@ impl EnginePwm {
         self.pwm.set_duty(Channel::Ch1, scaled_duty[0]);
         self.pwm.set_duty(Channel::Ch2, scaled_duty[1]);
     }
+}
 
-    pub fn update(&mut self, motor_left: Direction, motor_right: Direction) {
+impl EnginePwm for BlackpillEnginePwm {
+    fn update(&mut self, motor_left: Direction, motor_right: Direction) {
         info!("motor_left={:?}, motor_right={:?}", motor_left, motor_right);
 
         let mut duty_left = 0.0;

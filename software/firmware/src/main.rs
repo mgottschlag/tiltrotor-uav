@@ -16,7 +16,7 @@ mod display;
 mod radio;
 mod trace;
 
-use board::{BatteryMonitor, Board, Direction, EnginePwm};
+use board::{BatteryMonitor, Board, Direction, EnginePwm, EnginePwmType};
 use radio::{Radio, RadioIrq};
 
 static TRACE_EVENT_CHANNEL: trace::EventChannel = Channel::new();
@@ -80,7 +80,7 @@ async fn main(spawner: Spawner) {
 pub async fn radio_interrupt(
     mut radio: Radio,
     mut radio_irq: RadioIrq,
-    mut engines: EnginePwm,
+    mut engines: EnginePwmType,
     display_event_channel: &'static display::EventChannel,
     trace_event_channel: &'static trace::EventChannel,
 ) {
