@@ -17,6 +17,7 @@ mod radio;
 mod trace;
 
 use board::{BatteryMonitor, Board, Direction, EnginePwm, EnginePwmType};
+use display::Display;
 use radio::{Radio, RadioIrq};
 
 static TRACE_EVENT_CHANNEL: trace::EventChannel = Channel::new();
@@ -42,8 +43,9 @@ async fn main(spawner: Spawner) {
         .unwrap();
 
     info!("Setting up display ...");
+    let display = Display::init(board.display_i2c).unwrap();
     spawner
-        .spawn(display::run(board.display_i2c, &DISPLAY_EVENT_CHANNEL))
+        .spawn(display::run(display, &DISPLAY_EVENT_CHANNEL))
         .unwrap();
     DISPLAY_EVENT_CHANNEL
         .send(display::Event::Command(Command::new()))
