@@ -452,6 +452,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dummy-pin"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c38a4cc2cb15bb5c6105aa0ff207c478741add66acc8b42df637d7c2f9ba252"
+dependencies = [
+ "embedded-hal 1.0.0",
+]
+
+[[package]]
 name = "embassy-embedded-hal"
 version = "0.1.0"
 dependencies = [
@@ -713,12 +722,13 @@ dependencies = [
 
 [[package]]
 name = "embedded-sdmmc"
-version = "0.4.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b4ae38d27afe8ffb1c31f82ebe4960f099ac55bbdc35e813a45cade676f2600"
+checksum = "da528dbf3f1c1f0b321552bc334d04799bb17c1936de55bccfb643a4f39300d8"
 dependencies = [
  "byteorder",
- "embedded-hal 0.2.7",
+ "embedded-hal 1.0.0",
+ "heapless 0.7.17",
  "log",
 ]
 
@@ -746,6 +756,8 @@ dependencies = [
  "defmt",
  "defmt-rtt",
  "display-interface",
+ "dummy-pin",
+ "embassy-embedded-hal",
  "embassy-executor",
  "embassy-stm32",
  "embassy-sync",
