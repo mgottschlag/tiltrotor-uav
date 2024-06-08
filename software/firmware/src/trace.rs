@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 use core::fmt::Write;
-use defmt::info;
+use defmt::{error, info};
 use dummy_pin::DummyPin;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -8,13 +8,14 @@ use embassy_sync::blocking_mutex::Mutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Delay, Instant};
 use embedded_sdmmc::sdcard::AcquireOpts;
-use embedded_sdmmc::{Mode, TimeSource, Timestamp, VolumeIdx, VolumeManager};
+use embedded_sdmmc::{Mode, SdCardError, TimeSource, Timestamp, VolumeIdx, VolumeManager};
 use heapless::String;
 
 use crate::board::{StorageCs, StorageSpi};
 
 pub type EventChannel = Channel<CriticalSectionRawMutex, Event, 10>;
 
+#[derive(defmt::Format)]
 pub enum Event {
     Command(protocol::Command),
 }
@@ -34,8 +35,17 @@ impl TimeSource for Clock {
     }
 }
 
-#[embassy_executor::task]
-pub async fn run(spi: StorageSpi, cs: StorageCs, event_channel: &'static EventChannel) {
+#[derive(thiserror_no_std::Error, Debug, defmt::Format)]
+pub enum Error {
+    #[error("interface error")]
+    Interface(#[from] embedded_sdmmc::Error<SdCardError>),
+}
+
+async fn handle(
+    spi: StorageSpi,
+    cs: StorageCs,
+    event_channel: &'static EventChannel,
+) -> Result<(), Error> {
     let bus: Mutex<CriticalSectionRawMutex, RefCell<StorageSpi>> = Mutex::new(RefCell::new(spi));
     let spidevice = SpiDevice::new(&bus, cs);
 
@@ -48,44 +58,50 @@ pub async fn run(spi: StorageSpi, cs: StorageCs, event_channel: &'static EventCh
             acquire_retries: 0,
         },
     );
-    let size = sdcard.num_bytes().unwrap();
-    info!("Found sd card with size={}", size);
 
-    let mut volume_mgr = VolumeManager::new(sdcard, Clock);
-    let mut volume = volume_mgr.open_volume(VolumeIdx(0)).unwrap();
+    match sdcard.num_bytes() {
+        Ok(size) => {
+            info!("Found sd card with size={}", size);
 
-    let mut root_dir = volume.open_root_dir().unwrap();
-    let mut file_count = 0;
-    root_dir
-        .iterate_dir(|dir_entry| {
-            let mut name_vec =
-                heapless::Vec::<u8, 12>::from_slice(dir_entry.name.base_name()).unwrap();
-            name_vec.extend_from_slice(&[b'.']).unwrap();
-            name_vec
-                .extend_from_slice(dir_entry.name.extension())
-                .unwrap();
-            let name = String::from_utf8(name_vec).unwrap();
-            info!("- {:?}", name.as_str());
-            file_count += 1;
-        })
-        .unwrap();
+            let mut volume_mgr = VolumeManager::new(sdcard, Clock);
+            let mut volume = volume_mgr.open_volume(VolumeIdx(0))?;
 
-    let mut file_name: String<12> = String::new();
-    write!(&mut file_name, "{}.txt", file_count).unwrap();
-    let mut file = root_dir
-        .open_file_in_dir(file_name.as_str(), Mode::ReadWriteCreate)
-        .unwrap();
-    info!("Created new trace file '{}'", file_name.as_str());
+            let mut root_dir = volume.open_root_dir()?;
+            let mut file_count = 0;
+            root_dir.iterate_dir(|_| {
+                file_count += 1;
+            })?;
 
-    loop {
-        let event = event_channel.receive().await;
-        let msg = match event {
-            Event::Command(cmd) => {
-                let mut res: String<64> = String::new();
-                write!(&mut res, "{};{:?}\n", Instant::now().as_millis(), cmd).unwrap();
-                res
+            let mut file_name: String<12> = String::new();
+            write!(&mut file_name, "{}.txt", file_count).ok();
+            let mut file = root_dir.open_file_in_dir(file_name.as_str(), Mode::ReadWriteCreate)?;
+            info!("Created new trace file '{}'", file_name.as_str());
+
+            loop {
+                let event = event_channel.receive().await;
+                let msg = match event {
+                    Event::Command(cmd) => {
+                        let mut res: String<64> = String::new();
+                        write!(&mut res, "{};{:?}\n", Instant::now().as_millis(), cmd).ok();
+                        res
+                    }
+                };
+                file.write(msg.as_bytes())?;
             }
-        };
-        file.write(msg.as_bytes()).unwrap();
+        }
+        Err(e) => {
+            info!("No sd card available: {}", e);
+            loop {
+                let event = event_channel.receive().await;
+                info!("No event: {}", event);
+            }
+        }
+    };
+}
+
+#[embassy_executor::task]
+pub async fn run(spi: StorageSpi, cs: StorageCs, event_channel: &'static EventChannel) {
+    if let Err(e) = handle(spi, cs, event_channel).await {
+        error!("Failed to handle trace: {}", e)
     }
 }
