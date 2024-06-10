@@ -14,9 +14,11 @@ use heapless::String;
 use crate::board::{StorageCs, StorageSpi};
 
 pub type EventChannel = Channel<CriticalSectionRawMutex, Event, 10>;
+pub type ErrorString = String<256>;
 
 #[derive(defmt::Format)]
 pub enum Event {
+    Error(ErrorString),
     Command(protocol::Command),
 }
 
@@ -79,21 +81,32 @@ async fn handle(
 
             loop {
                 let event = event_channel.receive().await;
-                let msg = match event {
-                    Event::Command(cmd) => {
+                match event {
+                    /*Event::Command(cmd) => {
                         let mut res: String<64> = String::new();
                         write!(&mut res, "{};{:?}\n", Instant::now().as_millis(), cmd).ok();
                         res
+                    }*/
+                    Event::Error(msg) => {
+                        let mut res: String<16> = String::new();
+                        write!(&mut res, "{};E;", Instant::now().as_millis()).ok();
+                        file.write(res.as_bytes())?;
+                        file.write(msg.as_bytes())?;
                     }
+                    _ => {}
                 };
-                file.write(msg.as_bytes())?;
             }
         }
         Err(e) => {
             info!("No sd card available: {}", e);
             loop {
                 let event = event_channel.receive().await;
-                info!("No event: {}", event);
+                match event {
+                    Event::Error(msg) => {
+                        error!("Got error for sd card: {}", msg)
+                    }
+                    _ => {}
+                };
             }
         }
     };

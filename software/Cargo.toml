@@ -25,7 +25,7 @@ dummy-pin = "1.0.0"
 embedded-graphics = "0.8.1"
 embedded-nrf24l01 = { git = "https://github.com/ne0h/embedded-nrf24l01", branch = "ack-payload" }
 embedded-sdmmc = { version = "0.7.0", features = ["defmt-log"], default-features = false }
-heapless = "0.8.0"
+heapless = { version = "0.8.0", features = ["defmt-03"] }
 libm = "0.2.8"
 panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 ssd1306 = { git = "https://github.com/ne0h/ssd1306", branch = "update-display-interface" }

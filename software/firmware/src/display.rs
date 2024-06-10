@@ -25,7 +25,16 @@ static CLEAR_STYLE: PrimitiveStyle<BinaryColor> = PrimitiveStyleBuilder::new()
     .stroke_color(BinaryColor::Off)
     .build();
 
+#[derive(Debug, defmt::Format)]
+pub enum ErrorCode {
+    FailedToSpawnTraceTask = 0x01,
+    FailedToSpawnBatteryMonitorTask = 0x02,
+    FailedToInitRadio = 0x03,
+    FailedToSpawnRadioTask = 0x04,
+}
+
 pub enum Event {
+    Error(ErrorCode),
     Command(protocol::Command),
     Battery(f32),
 }
@@ -57,6 +66,10 @@ impl Display {
     pub fn handle(&mut self, event: Event) -> Result<(), Error> {
         let mut msg: String<16> = String::new();
         let y = match event {
+            Event::Error(code) => {
+                write!(&mut msg, "Error: {:?}", code).ok();
+                0
+            }
             Event::Command(cmd) => {
                 write!(
                     &mut msg,
@@ -65,11 +78,11 @@ impl Display {
                     round(cmd.pose[1])
                 )
                 .ok();
-                0
+                20
             }
             Event::Battery(voltage) => {
                 write!(&mut msg, "Bat:  {} V", round(voltage)).ok();
-                20
+                40
             }
         };
 

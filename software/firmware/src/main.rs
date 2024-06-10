@@ -1,12 +1,14 @@
 #![no_main]
 #![no_std]
 
-use defmt::*;
+use core::fmt::Write;
+use defmt::{error, info};
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
+use heapless::String;
 use libm::fabsf;
 use protocol::{Command, Status};
 use {defmt_rtt as _, panic_probe as _};
@@ -28,50 +30,126 @@ static STATUS: Mutex<CriticalSectionRawMutex, Status> = Mutex::new(Status {
     b: 0.0,
 });
 
+macro_rules! trace_error {
+    ( $( $e:expr ),* ) => {
+        $(
+            let mut buf: String<256> = String::new();
+            write!(&mut buf, "{:?}", $e).ok();
+            TRACE_EVENT_CHANNEL.send(trace::Event::Error(buf)).await;
+        )*
+    };
+}
+
+macro_rules! print_no_defmt_error { // FIXME: print error (serde_cbor::Error does not implement defmt::Format) -> migrate to ciborium
+    ( $( $msg:expr, $e:expr ),* ) => {
+        $(
+            let mut buf: String<256> = String::new();
+            write!(&mut buf, "{:?}", $e).ok();
+            error!("{}: {}", $msg, buf)
+        )*
+    };
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Starting ...");
     let board = Board::init();
 
-    info!("Setting up trace ...");
-    spawner
-        .spawn(trace::run(
+    {
+        info!("Setting up display ...");
+        let display = match Display::init(board.display_i2c) {
+            Ok(display) => display,
+            Err(e) => {
+                error!("Failed to init display: {}", e);
+                loop {
+                    Timer::after_secs(1).await;
+                }
+            }
+        };
+        if let Err(e) = spawner.spawn(display::run(display, &DISPLAY_EVENT_CHANNEL)) {
+            error!("Failed to spawn display event task: {}", e);
+            loop {
+                Timer::after_secs(1).await;
+            }
+        }
+        DISPLAY_EVENT_CHANNEL
+            .send(display::Event::Command(Command::new()))
+            .await;
+    }
+
+    {
+        info!("Setting up trace ...");
+        if let Err(e) = spawner.spawn(trace::run(
             board.storage_spi,
             board.storage_cs,
             &TRACE_EVENT_CHANNEL,
-        ))
-        .unwrap();
+        )) {
+            error!("Failed to spawn trace event task: {}", e);
+            DISPLAY_EVENT_CHANNEL
+                .send(display::Event::Error(
+                    display::ErrorCode::FailedToSpawnTraceTask,
+                ))
+                .await;
+            loop {
+                Timer::after_secs(1).await;
+            }
+        }
+    }
 
-    info!("Setting up display ...");
-    let display = Display::init(board.display_i2c).unwrap();
-    spawner
-        .spawn(display::run(display, &DISPLAY_EVENT_CHANNEL))
-        .unwrap();
-    DISPLAY_EVENT_CHANNEL
-        .send(display::Event::Command(Command::new()))
-        .await;
-
-    info!("Setting up battery monitor ...");
-    spawner
-        .spawn(battery_monitor(
+    {
+        info!("Setting up battery monitor ...");
+        if let Err(e) = spawner.spawn(battery_monitor(
             board.battery_monitor,
             &DISPLAY_EVENT_CHANNEL,
-        ))
-        .unwrap();
+        )) {
+            error!("Failed to spawn battery monitor task: {}", e);
+            DISPLAY_EVENT_CHANNEL
+                .send(display::Event::Error(
+                    display::ErrorCode::FailedToSpawnBatteryMonitorTask,
+                ))
+                .await;
+            trace_error!(e);
+            loop {
+                Timer::after_secs(1).await;
+            }
+        }
+    }
 
-    info!("Setting up radio ...");
-    let radio = Radio::init(board.radio_spi, board.radio_cs, board.radio_ce).unwrap();
-    info!("Done setting up radio");
-
-    spawner
-        .spawn(radio_interrupt(
+    {
+        info!("Setting up radio ...");
+        let radio = match Radio::init(board.radio_spi, board.radio_cs, board.radio_ce) {
+            Ok(radio) => radio,
+            Err(e) => {
+                print_no_defmt_error!("Failed to init radio", e);
+                DISPLAY_EVENT_CHANNEL
+                    .send(display::Event::Error(display::ErrorCode::FailedToInitRadio))
+                    .await;
+                trace_error!(e);
+                loop {
+                    Timer::after_secs(1).await;
+                }
+            }
+        };
+        if let Err(e) = spawner.spawn(radio_interrupt(
             radio,
             board.radio_irq,
             board.engines,
             &DISPLAY_EVENT_CHANNEL,
             &TRACE_EVENT_CHANNEL,
-        ))
-        .unwrap();
+        )) {
+            error!("Failed to spawn radio task: {}", e);
+            DISPLAY_EVENT_CHANNEL
+                .send(display::Event::Error(
+                    display::ErrorCode::FailedToSpawnRadioTask,
+                ))
+                .await;
+            trace_error!(e);
+            loop {
+                Timer::after_secs(1).await;
+            }
+        }
+        info!("Done setting up radio");
+    }
 
     loop {
         Timer::after_secs(1).await;
@@ -94,8 +172,8 @@ pub async fn radio_interrupt(
 
         let cmd_opt = match radio.poll(&status) {
             Ok(cmd) => cmd,
-            Err(_) => {
-                error!("Failed to handle receive of incoming message"); // FIXME: print error (serde_cbor::Error does not implement defmt::Format) -> migrate to ciborium
+            Err(e) => {
+                print_no_defmt_error!("Failed to handle receive of incoming message", e);
                 continue;
             }
         };
