@@ -25,9 +25,9 @@ use radio::{Radio, RadioIrq};
 static TRACE_EVENT_CHANNEL: trace::EventChannel = Channel::new();
 static DISPLAY_EVENT_CHANNEL: display::EventChannel = Channel::new();
 static STATUS: Mutex<CriticalSectionRawMutex, Status> = Mutex::new(Status {
-    r: 0.0,
-    p: 0.0,
-    b: 0.0,
+    roll: 0.0,
+    pitch: 0.0,
+    battery: 0.0,
 });
 
 macro_rules! trace_error {
@@ -241,7 +241,7 @@ pub async fn battery_monitor(
         let voltage = battery_monitor.read();
         {
             let mut status_unlocked = STATUS.lock().await;
-            status_unlocked.b = voltage;
+            status_unlocked.battery = voltage;
         }
         event_channel.send(display::Event::Battery(voltage)).await;
         Timer::after_secs(10).await;

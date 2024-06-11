@@ -1,31 +1,34 @@
 #![no_std]
 
 use defmt::Format;
-use serde::{Deserialize, Serialize};
+use minicbor::{CborLen, Decode, Encode};
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Encode, Decode, CborLen)]
 pub struct Status {
-    pub r: f32, // roll
-    pub p: f32, // pitch
-    pub b: f32, // battery
+    #[n(0)]
+    pub roll: f32,
+    #[n(1)]
+    pub pitch: f32,
+    #[n(2)]
+    pub battery: f32,
 }
 
 impl Status {
     pub fn new() -> Self {
         Self {
-            r: 0.0,
-            p: 0.0,
-            b: 0.0,
+            roll: 0.0,
+            pitch: 0.0,
+            battery: 0.0,
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Format, Clone)]
+#[derive(Debug, PartialEq, Format, Clone, Encode, Decode, CborLen)]
 pub struct Command {
-    // [0..255]
-    pub thrust: [i16; 4],
-    // [-1.0..1.0]
-    pub pose: [f32; 2],
+    #[n(0)]
+    pub thrust: [i16; 4], // [0..255]
+    #[n(1)]
+    pub pose: [f32; 2], // [-1.0..1.0]
 }
 
 impl Command {

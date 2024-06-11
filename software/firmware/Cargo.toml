@@ -18,9 +18,8 @@ embedded-nrf24l01 = { workspace = true }
 embedded-sdmmc = { workspace = true }
 heapless = { workspace = true }
 libm = { workspace = true }
+minicbor = { workspace = true }
 panic-probe = { workspace = true }
-serde = { workspace = true }
-serde_cbor = { workspace = true, features = ["unsealed_read_write"] }
 ssd1306 = { workspace = true }
 thiserror-no-std = { workspace = true }
 

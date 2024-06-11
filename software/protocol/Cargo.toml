@@ -8,4 +8,4 @@ edition = "2021"
 
 [dependencies]
 defmt = { workspace = true }
-serde = { workspace = true }
+minicbor = { workspace = true, features = ["derive"] }

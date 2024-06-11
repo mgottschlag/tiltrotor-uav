@@ -2,10 +2,7 @@
 use core::convert::Infallible;
 use defmt::info;
 use embedded_nrf24l01::{self, Configuration, CrcMode, DataRate, RxMode, NRF24L01};
-use serde::Serialize;
-use serde_cbor::de::from_mut_slice;
-use serde_cbor::ser::SliceWrite;
-use serde_cbor::Serializer;
+use minicbor::encode::write::EndOfSlice;
 
 pub use crate::board::{RadioCe, RadioCs, RadioIrq, RadioSpi};
 
@@ -14,8 +11,11 @@ pub enum Error {
     #[error("interface error")]
     Interface(#[from] embedded_nrf24l01::Error<embassy_stm32::spi::Error>),
 
-    #[error("serialization error")]
-    Serialization(#[from] serde_cbor::Error),
+    #[error("decode error")]
+    Decode(#[from] minicbor::decode::Error),
+
+    #[error("encode error")]
+    Encode(#[from] minicbor::encode::Error<EndOfSlice>),
 }
 
 pub struct Radio {
@@ -66,34 +66,17 @@ impl Radio {
         self.rx.clear_interrupts()?;
         while let Some(_) = self.rx.can_read()? {
             // prepare response
+            let size = minicbor::len(&status); // TODO: handle size >= 32 bytes
             let mut buf = [0u8; 32];
-            let writer = SliceWrite::new(&mut buf[..]);
-            let mut ser = Serializer::new(writer);
-            status.serialize(&mut ser).ok();
-            let writer = ser.into_inner();
-            let size = writer.bytes_written();
+            minicbor::encode(&status, buf.as_mut())?;
 
-            // read incoming packet
+            // read incoming packet and send response
             let payload = self.rx.read()?;
             //info!("- Got {} bytes: {:02x}", payload.len(), payload.as_ref());
             self.rx.send(&buf[..size], Some(1))?;
 
-            let mut payload_array = [0u8; 32];
-            payload_array[0..payload.len()].copy_from_slice(payload.as_ref());
-
-            match from_mut_slice(&mut payload_array[0..payload.len()]) {
-                // TODO: input validation
-                Ok(Some(cmd)) => {
-                    return Ok(cmd);
-                }
-                Ok(None) => {
-                    info!("Failed to deserialize command");
-                    continue;
-                }
-                Err(err) => {
-                    return Err(Error::Serialization(err));
-                }
-            }
+            let cmd: protocol::Command = minicbor::decode(payload.as_ref())?;
+            return Ok(Some(cmd));
         }
         Ok(None)
     }

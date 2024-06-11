@@ -53,14 +53,15 @@ impl Radio {
         cmd.thrust = cmd.thrust.map(|e| e.clamp(0, 255));
         cmd.pose = cmd.pose.map(|e| e.clamp(-1.0, 1.0));
 
-        let mut buf = Vec::with_capacity(MAX_PAYLOAD_LEN);
-        ciborium::into_writer(&cmd, &mut buf).unwrap();
+        let size = minicbor::len(&cmd); // TODO: handle size >= MAX_PAYLOAD_LEN bytes
+        let mut buf = [0u8; MAX_PAYLOAD_LEN];
+        minicbor::encode(&cmd, buf.as_mut()).unwrap();
 
         match self
             .receiver
             .send(
                 (&[0x44u8, 0x72u8, 0x6fu8, 0x6eu8, 0x65u8][..]).into(),
-                &buf[..buf.len()],
+                &buf[..size],
             )
             .await
         {
@@ -69,10 +70,10 @@ impl Radio {
                 let size = data.len();
                 println!("Received ACK payload: {data:?}. len={size}\r");
 
-                let status: Status = ciborium::from_reader(&data[..]).unwrap();
+                let status: Status = minicbor::decode(&data[..]).unwrap();
                 println!(
                     "roll={}, pitch={}, battery={}\r",
-                    status.r, status.p, status.b
+                    status.roll, status.pitch, status.battery
                 );
             }
             Ok(None) => {
