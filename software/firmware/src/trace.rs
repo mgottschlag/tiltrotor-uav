@@ -63,7 +63,7 @@ async fn handle(
 
     match sdcard.num_bytes() {
         Ok(size) => {
-            info!("Found sd card with size={}", size);
+            info!("Found sdcard with size={}", size);
 
             let mut volume_mgr = VolumeManager::new(sdcard, Clock);
             let mut volume = volume_mgr.open_volume(VolumeIdx(0))?;
@@ -98,7 +98,8 @@ async fn handle(
             }
         }
         Err(e) => {
-            info!("No sd card available: {}", e);
+            info!("No sdcard available: {}", e);
+            info!("Printing events to stdout");
             loop {
                 let event = event_channel.receive().await;
                 match event {

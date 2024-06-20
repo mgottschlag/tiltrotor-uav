@@ -12,7 +12,7 @@ const KEY_DOWN: Event = Event::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NO
 const KEY_LEFT: Event = Event::Key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
 const KEY_RIGHT: Event = Event::Key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
 
-const SCALE_POSE: f32 = 0.2;
+const SCALE_POSE: f32 = 0.3;
 
 pub async fn run(cmd_tx: &tokio::sync::mpsc::Sender<Command>) {
     let mut reader = EventStream::new();
@@ -50,13 +50,14 @@ pub async fn run(cmd_tx: &tokio::sync::mpsc::Sender<Command>) {
                                 cmd = Command::new().with_pose([-1.0*SCALE_POSE, 0.0]);
                             }
                             if event == KEY_LEFT.into() {
-                                cmd = Command::new().with_pose([0.0*SCALE_POSE, -0.2]);
+                                cmd = Command::new().with_pose([0.0*SCALE_POSE, 0.2]);
                             }
                             if event == KEY_RIGHT.into() {
-                                cmd = Command::new().with_pose([0.0*SCALE_POSE, 0.2]);
+                                cmd = Command::new().with_pose([0.0*SCALE_POSE, -0.2]);
                             }
 
                             if cmd != last_cmd {
+                                //println!("Event: {:?} -> cmd: {:?}", event, cmd);
                                 cmd_tx.send(cmd.clone()).await.unwrap();
                                 last_cmd = cmd;
                             }

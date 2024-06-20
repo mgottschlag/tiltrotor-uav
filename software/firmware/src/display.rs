@@ -78,11 +78,11 @@ impl Display {
                     round(cmd.pose[1])
                 )
                 .ok();
-                20
+                17
             }
             Event::Battery(voltage) => {
                 write!(&mut msg, "Bat:  {} V", round(voltage)).ok();
-                40
+                35
             }
         };
 
