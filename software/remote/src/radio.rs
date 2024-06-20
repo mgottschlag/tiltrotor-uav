@@ -3,6 +3,13 @@ use nrf24l01_stick_driver::{
 };
 use protocol::{Command, Status};
 use std::path::PathBuf;
+use tokio::time::{sleep, Duration};
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("interface error")]
+    Interface(#[from] nrf24l01_stick_driver::Error),
+}
 
 pub struct Radio {
     receiver: Receiver,
@@ -43,13 +50,34 @@ impl Radio {
                     println!("Received {:?} from {}\r", packet.payload, packet.pipe);
                 }
                 Some(cmd) = self.cmd_queue.recv() => {
-                    self.send(cmd).await
+                    println!("Got {cmd:?}\r");
+
+                    let max_retries = 10;
+                    let mut retries = 0;
+                    while retries < max_retries {
+                        retries += 1;
+                        match self.send(cmd.clone()).await {
+                            Ok(_) => break,
+                            Err(e) => println!("could not send: {e:?}\r"),
+                        }
+                        sleep(Duration::from_millis(100)).await;
+                        println!("Doing resend ({}th fail)", retries+1);
+                    }
+
+                    if retries == max_retries {
+                        println!("Maximum retries reached - clearing command queue and try to stop");
+                        while !self.cmd_queue.is_empty() {
+                            _ = self.cmd_queue.recv().await
+                        }
+                        println!("Queue cleared")
+                    }
+
                 },
             }
         }
     }
 
-    pub async fn send(&mut self, mut cmd: Command) {
+    pub async fn send(&mut self, mut cmd: Command) -> Result<(), Error> {
         cmd.thrust = cmd.thrust.map(|e| e.clamp(0, 255));
         cmd.pose = cmd.pose.map(|e| e.clamp(-1.0, 1.0));
 
@@ -70,16 +98,21 @@ impl Radio {
                 let size = data.len();
                 println!("Received ACK payload: {data:?}. len={size}\r");
 
-                let status: Status = minicbor::decode(&data[..]).unwrap();
-                println!(
-                    "roll={}, pitch={}, battery={}\r",
-                    status.roll, status.pitch, status.battery
-                );
+                let status: Result<Status, minicbor::decode::Error> = minicbor::decode(&data[..]);
+                match status {
+                    Ok(status) => println!(
+                        "roll={}, pitch={}, battery={}\r",
+                        status.roll, status.pitch, status.battery
+                    ),
+                    Err(e) => println!("ERR: failed to decode status: {e}"),
+                }
             }
             Ok(None) => {
                 println!("Did not receive ACK payload.\r");
             }
-            Err(e) => println!("could not send: {e:?}\r"),
+            Err(e) => return Err(Error::Interface(e)),
         }
+
+        Ok(())
     }
 }
