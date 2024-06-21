@@ -51,7 +51,7 @@ fn setup(
     let opts = Opts::from_args();
     info!("Opts: {opts:?}");
 
-    let (cmd_tx, cmd_rx) = mpsc::channel::<protocol::Command>(32);
+    let (cmd_tx, mut cmd_rx) = mpsc::channel::<protocol::Command>(32);
     let (status_tx, mut status_rx) = mpsc::channel::<protocol::Status>(32);
     commands.spawn(Camera2dBundle::default());
     commands.spawn(Client { cmd_queue: cmd_tx });
@@ -68,10 +68,24 @@ fn setup(
         ..default()
     },));
 
-    runtime.spawn_background_task(|_| async move {
-        let mut radio = radio::Radio::new(opts.device, cmd_rx, status_tx).await;
-        radio.run().await
-    });
+    match opts.offline {
+        false => runtime.spawn_background_task(|_| async move {
+            let mut radio = radio::Radio::new(opts.device, cmd_rx, status_tx).await;
+            radio.run().await
+        }),
+        true => runtime.spawn_background_task(|_| async move {
+            let mut last_cmd = protocol::Command::new();
+            loop {
+                if let Some(cmd) = cmd_rx.recv().await {
+                    if cmd != last_cmd {
+                        info!("Got {cmd:?}");
+                        last_cmd = cmd;
+                    }
+                }
+            }
+        }),
+    };
+
     commands.insert_resource(Status {
         status: protocol::Status::new(),
     });
