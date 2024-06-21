@@ -13,6 +13,11 @@ struct Client {
     cmd_queue: mpsc::Sender<protocol::Command>,
 }
 
+#[derive(Resource)]
+struct Status {
+    status: protocol::Status,
+}
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 struct Opts {
@@ -32,24 +37,54 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(TokioTasksPlugin::default())
-        .insert_resource(Time::<Fixed>::from_hz(60.0))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, keyboard_input)
-        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Update, (bevy::window::close_on_esc, update_text))
         .run();
 }
 
-fn setup(runtime: ResMut<TokioTasksRuntime>, mut commands: Commands) {
+fn setup(
+    runtime: ResMut<TokioTasksRuntime>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     let opts = Opts::from_args();
     info!("Opts: {opts:?}");
 
     let (cmd_tx, cmd_rx) = mpsc::channel::<protocol::Command>(32);
+    let (status_tx, mut status_rx) = mpsc::channel::<protocol::Status>(32);
     commands.spawn(Camera2dBundle::default());
     commands.spawn(Client { cmd_queue: cmd_tx });
 
+    let font = asset_server.load("FiraSans-Bold.ttf");
+    let text_style = TextStyle {
+        font: font.clone(),
+        font_size: 60.0,
+        color: Color::WHITE,
+    };
+    let text_justification = JustifyText::Center;
+    commands.spawn((Text2dBundle {
+        text: Text::from_section("Battery", text_style.clone()).with_justify(text_justification),
+        ..default()
+    },));
+
     runtime.spawn_background_task(|_| async move {
-        let mut radio = radio::Radio::new(opts.device, cmd_rx).await;
+        let mut radio = radio::Radio::new(opts.device, cmd_rx, status_tx).await;
         radio.run().await
+    });
+    commands.insert_resource(Status {
+        status: protocol::Status::new(),
+    });
+    runtime.spawn_background_task(|mut ctx| async move {
+        loop {
+            let status = status_rx.recv().await.unwrap();
+            info!("Status update: {status:?}");
+            ctx.run_on_main_thread(move |ctx| {
+                let mut res = ctx.world.resource_mut::<Status>();
+                res.status = status;
+            })
+            .await;
+        }
     });
 }
 
@@ -93,4 +128,10 @@ fn keyboard_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut query: Query<&C
     };
 
     futures::executor::block_on(async { client.cmd_queue.send(cmd).await }).unwrap();
+}
+
+fn update_text(status: Res<Status>, mut query: Query<&mut Text>) {
+    for mut text in query.iter_mut() {
+        text.sections[0].value = format!("Battery: {:.2} V", status.status.battery);
+    }
 }

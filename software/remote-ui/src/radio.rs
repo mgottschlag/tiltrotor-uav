@@ -9,10 +9,15 @@ pub struct Radio {
     receiver: Receiver,
     cmd_queue: tokio::sync::mpsc::Receiver<Command>,
     last_cmd: Command,
+    status_queue: tokio::sync::mpsc::Sender<Status>,
 }
 
 impl Radio {
-    pub async fn new(device: PathBuf, cmd_queue: tokio::sync::mpsc::Receiver<Command>) -> Self {
+    pub async fn new(
+        device: PathBuf,
+        cmd_queue: tokio::sync::mpsc::Receiver<Command>,
+        status_queue: tokio::sync::mpsc::Sender<Status>,
+    ) -> Self {
         let mut config = Configuration::default();
         config.channel = 0x32;
         config.rate = DataRate::R2Mbps;
@@ -35,6 +40,7 @@ impl Radio {
             receiver: receiver,
             cmd_queue: cmd_queue,
             last_cmd: Command::new(),
+            status_queue: status_queue,
         }
     }
 
@@ -75,14 +81,15 @@ impl Radio {
         {
             Ok(Some(ack_payload)) => {
                 let data = ack_payload.payload;
-                let size = data.len();
-                info!("Received ACK payload: {data:?}. len={size}\r");
+                let _size = data.len();
+                //info!("Received ACK payload: {data:?}. len={size}\r");
 
                 let status: Status = minicbor::decode(&data[..]).unwrap();
-                info!(
+                /*info!(
                     "roll={}, pitch={}, battery={}\r",
                     status.roll, status.pitch, status.battery
-                );
+                );*/
+                self.status_queue.send(status).await.unwrap();
             }
             Ok(None) => {
                 info!("Did not receive ACK payload.\r");
