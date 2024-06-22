@@ -10,6 +10,15 @@ use tokio::time::{sleep, Duration};
 pub enum Error {
     #[error("interface error")]
     Interface(#[from] nrf24l01_stick_driver::Error),
+
+    #[error("invalid tty error")]
+    InvalidTtyError,
+
+    #[error("channel send error")]
+    ChannelSendError(#[from] tokio::sync::mpsc::error::SendError<protocol::Status>),
+
+    #[error("encode error")]
+    EncodeError,
 }
 
 pub struct Radio {
@@ -24,7 +33,7 @@ impl Radio {
         device: PathBuf,
         cmd_queue: tokio::sync::mpsc::Receiver<Command>,
         status_queue: tokio::sync::mpsc::Sender<Status>,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let mut config = Configuration::default();
         config.channel = 0x32;
         config.rate = DataRate::R2Mbps;
@@ -32,23 +41,23 @@ impl Radio {
         config.crc = Some(CrcMode::OneByte);
         config.auto_retransmit_delay_count = Some((250, 3));
 
-        let mut nrf24l01 = NRF24L01::open_default(config, device.to_str().unwrap())
-            .await
-            .expect("could not open device");
+        let tty = match device.to_str() {
+            Some(tty) => tty,
+            None => return Err(Error::InvalidTtyError),
+        };
+        let mut nrf24l01 = NRF24L01::open_default(config, tty).await?;
         // data is received via ACK payloads -> no need to set any receive addresses
         nrf24l01
             .set_receive_addr(None, None, None, None, None)
-            .await
-            .expect("could not set receive address");
+            .await?;
+        let receiver = nrf24l01.receive().await?;
 
-        let receiver = nrf24l01.receive().await.expect("could not start receiving");
-
-        Radio {
+        Ok(Radio {
             receiver: receiver,
             cmd_queue: cmd_queue,
             last_cmd: Command::new(),
             status_queue: status_queue,
-        }
+        })
     }
 
     pub async fn run(&mut self) {
@@ -95,7 +104,10 @@ impl Radio {
 
         let size = minicbor::len(&cmd); // TODO: handle size >= MAX_PAYLOAD_LEN bytes
         let mut buf = [0u8; MAX_PAYLOAD_LEN];
-        minicbor::encode(&cmd, buf.as_mut()).unwrap();
+        if let Err(e) = minicbor::encode(&cmd, buf.as_mut()) {
+            error!("Failed to encode cmd '{cmd:?}': {}", e);
+            return Err(Error::EncodeError);
+        }
 
         match self
             .receiver
@@ -117,7 +129,7 @@ impl Radio {
                             "roll={}, pitch={}, battery={}\r",
                             status.roll, status.pitch, status.battery
                         )*/
-                        self.status_queue.send(status).await.unwrap();
+                        self.status_queue.send(status).await?;
                     }
                     Err(e) => error!("ERR: failed to decode status: {e}"),
                 }

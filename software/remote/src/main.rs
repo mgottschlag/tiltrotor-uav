@@ -65,7 +65,9 @@ fn setup(
 
     match opts.offline {
         false => runtime.spawn_background_task(|_| async move {
-            let mut radio = radio::Radio::new(opts.device, cmd_rx, status_tx).await;
+            let mut radio = radio::Radio::new(opts.device, cmd_rx, status_tx)
+                .await
+                .unwrap();
             radio.run().await
         }),
         true => runtime.spawn_background_task(|_| async move {
