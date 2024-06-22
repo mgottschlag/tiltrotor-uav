@@ -1,3 +1,4 @@
+use bevy::log::{error, info, warn};
 use nrf24l01_stick_driver::{
     Configuration, CrcMode, DataRate, Receiver, MAX_PAYLOAD_LEN, NRF24L01,
 };
@@ -14,10 +15,16 @@ pub enum Error {
 pub struct Radio {
     receiver: Receiver,
     cmd_queue: tokio::sync::mpsc::Receiver<Command>,
+    last_cmd: Command,
+    status_queue: tokio::sync::mpsc::Sender<Status>,
 }
 
 impl Radio {
-    pub async fn new(device: PathBuf, cmd_queue: tokio::sync::mpsc::Receiver<Command>) -> Self {
+    pub async fn new(
+        device: PathBuf,
+        cmd_queue: tokio::sync::mpsc::Receiver<Command>,
+        status_queue: tokio::sync::mpsc::Sender<Status>,
+    ) -> Self {
         let mut config = Configuration::default();
         config.channel = 0x32;
         config.rate = DataRate::R2Mbps;
@@ -37,8 +44,10 @@ impl Radio {
         let receiver = nrf24l01.receive().await.expect("could not start receiving");
 
         Radio {
-            receiver,
-            cmd_queue,
+            receiver: receiver,
+            cmd_queue: cmd_queue,
+            last_cmd: Command::new(),
+            status_queue: status_queue,
         }
     }
 
@@ -47,10 +56,13 @@ impl Radio {
             tokio::select! {
                 packet = self.receiver.receive() => {
                     let packet = packet.expect("could not receive packet");
-                    println!("Received {:?} from {}\r", packet.payload, packet.pipe);
+                    info!("Received {:?} from {}", packet.payload, packet.pipe);
                 }
                 Some(cmd) = self.cmd_queue.recv() => {
-                    println!("Got {cmd:?}\r");
+                    if cmd == self.last_cmd {
+                        continue
+                    }
+                    self.last_cmd = cmd.clone();
 
                     let max_retries = 10;
                     let mut retries = 0;
@@ -58,26 +70,26 @@ impl Radio {
                         retries += 1;
                         match self.send(cmd.clone()).await {
                             Ok(_) => break,
-                            Err(e) => println!("could not send: {e:?}\r"),
+                            Err(e) => error!("could not send: {e:?}"),
                         }
                         sleep(Duration::from_millis(100)).await;
-                        println!("Doing resend ({}th fail)", retries+1);
+                        warn!("Doing resend ({}th fail)", retries+1);
                     }
 
                     if retries == max_retries {
-                        println!("Maximum retries reached - clearing command queue and try to stop");
+                        warn!("Maximum retries reached - clearing command queue and try to stop");
                         while !self.cmd_queue.is_empty() {
                             _ = self.cmd_queue.recv().await
                         }
-                        println!("Queue cleared")
+                        warn!("Queue cleared")
                     }
-
                 },
             }
         }
     }
 
     pub async fn send(&mut self, mut cmd: Command) -> Result<(), Error> {
+        info!("Sending: {cmd:?}");
         cmd.thrust = cmd.thrust.map(|e| e.clamp(0, 255));
         cmd.pose = cmd.pose.map(|e| e.clamp(-1.0, 1.0));
 
@@ -95,20 +107,23 @@ impl Radio {
         {
             Ok(Some(ack_payload)) => {
                 let data = ack_payload.payload;
-                let size = data.len();
-                println!("Received ACK payload: {data:?}. len={size}\r");
+                let _size = data.len();
+                //info!("Received ACK payload: {data:?}. len={size}");
 
                 let status: Result<Status, minicbor::decode::Error> = minicbor::decode(&data[..]);
                 match status {
-                    Ok(status) => println!(
-                        "roll={}, pitch={}, battery={}\r",
-                        status.roll, status.pitch, status.battery
-                    ),
-                    Err(e) => println!("ERR: failed to decode status: {e}"),
+                    Ok(status) => {
+                        /*info!!(
+                            "roll={}, pitch={}, battery={}\r",
+                            status.roll, status.pitch, status.battery
+                        )*/
+                        self.status_queue.send(status).await.unwrap();
+                    }
+                    Err(e) => error!("ERR: failed to decode status: {e}"),
                 }
             }
             Ok(None) => {
-                println!("Did not receive ACK payload.\r");
+                warn!("Did not receive ACK payload.");
             }
             Err(e) => return Err(Error::Interface(e)),
         }

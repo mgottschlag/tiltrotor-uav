@@ -1,15 +1,22 @@
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use protocol::Command;
+use bevy::prelude::*;
+use bevy_tokio_tasks::{TokioTasksPlugin, TokioTasksRuntime};
 use std::path::PathBuf;
 use structopt::StructOpt;
 use tokio::sync::mpsc;
 
-mod gamepad;
-mod keyboard;
 mod radio;
 
-use gamepad::Gamepad;
-use radio::Radio;
+const SCALE_POSE: f32 = 0.3;
+
+#[derive(Component)]
+struct Client {
+    cmd_queue: mpsc::Sender<protocol::Command>,
+}
+
+#[derive(Resource)]
+struct Status {
+    status: protocol::Status,
+}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -21,50 +28,119 @@ struct Opts {
     offline: bool,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugins(TokioTasksPlugin::default())
+        .add_systems(Startup, setup)
+        .add_systems(FixedUpdate, keyboard_input)
+        .add_systems(Update, (bevy::window::close_on_esc, update_text))
+        .run();
+}
+
+fn setup(
+    runtime: ResMut<TokioTasksRuntime>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     let opts = Opts::from_args();
-    println!("Opts: {opts:?}");
+    info!("Opts: {opts:?}");
 
-    // init command channel
-    let (cmd_tx, mut cmd_rx) = mpsc::channel::<Command>(32);
-    cmd_tx
-        .send(Command {
-            thrust: [0; 4],
-            pose: [0.0; 2],
-        })
-        .await
-        .unwrap();
+    let (cmd_tx, mut cmd_rx) = mpsc::channel::<protocol::Command>(32);
+    let (status_tx, mut status_rx) = mpsc::channel::<protocol::Status>(32);
+    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Client { cmd_queue: cmd_tx });
 
-    match Gamepad::init() {
-        None => {
-            println!("Did not find any gamepads - falling back to keyboard");
-            tokio::spawn(async move {
-                enable_raw_mode().unwrap();
-                keyboard::run(&cmd_tx).await;
-                disable_raw_mode().unwrap();
-            });
-        }
-        Some(mut gamepad) => {
-            println!("Found at least one gamepad - waiting for input");
-            tokio::task::spawn_blocking(move || gamepad.run(&cmd_tx));
-        }
+    let font = asset_server.load("FiraSans-Bold.ttf");
+    let text_style = TextStyle {
+        font: font.clone(),
+        font_size: 60.0,
+        color: Color::WHITE,
     };
+    let text_justification = JustifyText::Center;
+    commands.spawn((Text2dBundle {
+        text: Text::from_section("Battery", text_style.clone()).with_justify(text_justification),
+        ..default()
+    },));
 
     match opts.offline {
-        true => {
-            println!("Waiting for commands in offline mode ...");
+        false => runtime.spawn_background_task(|_| async move {
+            let mut radio = radio::Radio::new(opts.device, cmd_rx, status_tx).await;
+            radio.run().await
+        }),
+        true => runtime.spawn_background_task(|_| async move {
+            let mut last_cmd = protocol::Command::new();
             loop {
                 if let Some(cmd) = cmd_rx.recv().await {
-                    println!("Got {cmd:?}\r");
+                    if cmd != last_cmd {
+                        info!("Got {cmd:?}");
+                        last_cmd = cmd;
+                    }
                 }
             }
+        }),
+    };
+
+    commands.insert_resource(Status {
+        status: protocol::Status::new(),
+    });
+    runtime.spawn_background_task(|mut ctx| async move {
+        loop {
+            let status = status_rx.recv().await.unwrap();
+            info!("Status update: {status:?}");
+            ctx.run_on_main_thread(move |ctx| {
+                let mut res = ctx.world.resource_mut::<Status>();
+                res.status = status;
+            })
+            .await;
         }
-        false => {
-            // init radio
-            let mut radio = Radio::new(opts.device, cmd_rx).await;
-            println!("Waiting for commands ...");
-            radio.run().await;
+    });
+}
+
+fn keyboard_input(keyboard_input: Res<ButtonInput<KeyCode>>, mut query: Query<&Client>) {
+    let client = query.single_mut();
+
+    let mut pressed = [false; 4]; // up, down, left, right
+    if keyboard_input.pressed(KeyCode::ArrowUp) {
+        pressed[0] = true
+    }
+    if keyboard_input.pressed(KeyCode::ArrowDown) {
+        pressed[1] = true
+    }
+    if keyboard_input.pressed(KeyCode::ArrowLeft) {
+        pressed[2] = true
+    }
+    if keyboard_input.pressed(KeyCode::ArrowRight) {
+        pressed[3] = true
+    }
+
+    let cmd = match pressed {
+        [true, false, false, false] => protocol::Command::new().with_pose([1.0 * SCALE_POSE, 0.0]),
+        [false, true, false, false] => protocol::Command::new().with_pose([-1.0 * SCALE_POSE, 0.0]),
+        [false, false, true, false] => protocol::Command::new().with_pose([0.0, 1.0 * SCALE_POSE]),
+        [false, false, false, true] => protocol::Command::new().with_pose([0.0, -1.0 * SCALE_POSE]),
+
+        [true, false, true, false] => {
+            protocol::Command::new().with_pose([1.0 * SCALE_POSE, 1.0 * SCALE_POSE])
         }
+        [true, false, false, true] => {
+            protocol::Command::new().with_pose([1.0 * SCALE_POSE, -1.0 * SCALE_POSE])
+        }
+        [false, true, true, false] => {
+            protocol::Command::new().with_pose([-1.0 * SCALE_POSE, 1.0 * SCALE_POSE])
+        }
+        [false, true, false, true] => {
+            protocol::Command::new().with_pose([-1.0 * SCALE_POSE, -1.0 * SCALE_POSE])
+        }
+
+        _ => protocol::Command::new(),
+    };
+
+    futures::executor::block_on(async { client.cmd_queue.send(cmd).await }).unwrap();
+}
+
+fn update_text(status: Res<Status>, mut query: Query<&mut Text>) {
+    for mut text in query.iter_mut() {
+        text.sections[0].value = format!("Battery: {:.2} V", status.status.battery);
     }
 }

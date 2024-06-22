@@ -3,7 +3,6 @@ members = [
     "firmware",
     "protocol",
     "remote",
-    "remote-ui",
 ]
 resolver = "2"
 
@@ -33,10 +32,7 @@ thiserror-no-std = "2.0.2"
 # remote
 bevy = { version = "0.13.1", default-features = false, features = ["bevy_asset", "bevy_text", "wayland"] }
 bevy-tokio-tasks = { git = "https://github.com/foxzool/bevy-tokio-tasks", branch = "master" }
-crossterm = { version = "0.27.0", features = [ "event-stream" ] }
 futures = "0.3.30"
-futures-timer = "3.0.3"
-gilrs = "0.10.6"
 nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "8352dc6" }
 structopt = "0.3.26"
 thiserror = "1.0.58"
