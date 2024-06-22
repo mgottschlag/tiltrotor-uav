@@ -12,4 +12,5 @@ futures = { workspace = true }
 minicbor = { workspace = true }
 nrf24l01-stick-driver = { workspace = true }
 structopt = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }

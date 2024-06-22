@@ -21,12 +21,7 @@ struct Status {
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 struct Opts {
-    #[structopt(
-        short = "d",
-        long,
-        parse(from_os_str),
-        default_value = "/dev/ttyUSB_nrf24l01"
-    )]
+    #[structopt(short = "d", long, parse(from_os_str), default_value = "/dev/ttyACM0")]
     device: PathBuf,
 
     #[structopt(short = "o", long)]

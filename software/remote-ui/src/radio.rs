@@ -1,9 +1,16 @@
-use bevy::log::{error, info};
+use bevy::log::{error, info, warn};
 use nrf24l01_stick_driver::{
     Configuration, CrcMode, DataRate, Receiver, MAX_PAYLOAD_LEN, NRF24L01,
 };
 use protocol::{Command, Status};
 use std::path::PathBuf;
+use tokio::time::{sleep, Duration};
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("interface error")]
+    Interface(#[from] nrf24l01_stick_driver::Error),
+}
 
 pub struct Radio {
     receiver: Receiver,
@@ -49,20 +56,39 @@ impl Radio {
             tokio::select! {
                 packet = self.receiver.receive() => {
                     let packet = packet.expect("could not receive packet");
-                    info!("Received {:?} from {}\r", packet.payload, packet.pipe);
+                    info!("Received {:?} from {}", packet.payload, packet.pipe);
                 }
                 Some(cmd) = self.cmd_queue.recv() => {
-                    if cmd != self.last_cmd {
-                        self.send(cmd.clone()).await;
-                        self.last_cmd = cmd;
+                    if cmd == self.last_cmd {
+                        continue
+                    }
+                    self.last_cmd = cmd.clone();
+
+                    let max_retries = 10;
+                    let mut retries = 0;
+                    while retries < max_retries {
+                        retries += 1;
+                        match self.send(cmd.clone()).await {
+                            Ok(_) => break,
+                            Err(e) => error!("could not send: {e:?}"),
+                        }
+                        sleep(Duration::from_millis(100)).await;
+                        warn!("Doing resend ({}th fail)", retries+1);
                     }
 
+                    if retries == max_retries {
+                        warn!("Maximum retries reached - clearing command queue and try to stop");
+                        while !self.cmd_queue.is_empty() {
+                            _ = self.cmd_queue.recv().await
+                        }
+                        warn!("Queue cleared")
+                    }
                 },
             }
         }
     }
 
-    pub async fn send(&mut self, mut cmd: Command) {
+    pub async fn send(&mut self, mut cmd: Command) -> Result<(), Error> {
         info!("Sending: {cmd:?}");
         cmd.thrust = cmd.thrust.map(|e| e.clamp(0, 255));
         cmd.pose = cmd.pose.map(|e| e.clamp(-1.0, 1.0));
@@ -82,19 +108,26 @@ impl Radio {
             Ok(Some(ack_payload)) => {
                 let data = ack_payload.payload;
                 let _size = data.len();
-                //info!("Received ACK payload: {data:?}. len={size}\r");
+                //info!("Received ACK payload: {data:?}. len={size}");
 
-                let status: Status = minicbor::decode(&data[..]).unwrap();
-                /*info!(
-                    "roll={}, pitch={}, battery={}\r",
-                    status.roll, status.pitch, status.battery
-                );*/
-                self.status_queue.send(status).await.unwrap();
+                let status: Result<Status, minicbor::decode::Error> = minicbor::decode(&data[..]);
+                match status {
+                    Ok(status) => {
+                        /*info!!(
+                            "roll={}, pitch={}, battery={}\r",
+                            status.roll, status.pitch, status.battery
+                        )*/
+                        self.status_queue.send(status).await.unwrap();
+                    }
+                    Err(e) => error!("ERR: failed to decode status: {e}"),
+                }
             }
             Ok(None) => {
-                info!("Did not receive ACK payload.\r");
+                warn!("Did not receive ACK payload.");
             }
-            Err(e) => error!("could not send: {e:?}\r"),
+            Err(e) => return Err(Error::Interface(e)),
         }
+
+        Ok(())
     }
 }
