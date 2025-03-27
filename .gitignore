@@ -7,4 +7,4 @@ electronics/flightcontroller/flightcontroller-backups
 fp-info-cache
 *.kicad_prl
 .DS_Store
-
+.vscode/
