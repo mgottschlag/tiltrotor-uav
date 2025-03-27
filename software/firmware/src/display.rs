@@ -13,6 +13,7 @@ use heapless::String;
 use ssd1306::{mode::BufferedGraphicsMode, prelude::*, I2CDisplayInterface, Ssd1306};
 
 use crate::board::DisplayI2c;
+use crate::radio;
 
 pub type EventChannel = Channel<CriticalSectionRawMutex, Event, 10>;
 
@@ -35,7 +36,7 @@ pub enum ErrorCode {
 
 pub enum Event {
     Error(ErrorCode),
-    Command(protocol::Command),
+    Command(radio::Command),
     Battery(f32),
 }
 
@@ -71,13 +72,7 @@ impl Display {
                 0
             }
             Event::Command(cmd) => {
-                write!(
-                    &mut msg,
-                    "Pose: [{}, {}]",
-                    round(cmd.pose[0]),
-                    round(cmd.pose[1])
-                )
-                .ok();
+                write!(&mut msg, "Pose: [{}, {}]", round(cmd.pitch), round(cmd.yaw)).ok();
                 17
             }
             Event::Battery(voltage) => {

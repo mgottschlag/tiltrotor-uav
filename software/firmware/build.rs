@@ -7,9 +7,9 @@ use std::path::PathBuf;
 compile_error!("No hardware platform selected.");
 
 #[cfg(feature = "blackpill")]
-const MEMORY: &'static [u8] = include_bytes!("linker/memory-stm32f411.x");
+const MEMORY: &[u8] = include_bytes!("linker/memory-stm32f411.x");
 #[cfg(feature = "flightcontroller")]
-const MEMORY: &'static [u8] = include_bytes!("linker/memory-stm32g491.x");
+const MEMORY: &[u8] = include_bytes!("linker/memory-stm32g491.x");
 
 fn main() {
     // Put `memory.x` in our output directory and ensure it's

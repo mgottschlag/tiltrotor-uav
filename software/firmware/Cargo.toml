@@ -14,12 +14,11 @@ defmt-rtt = { workspace = true }
 display-interface = { workspace = true }
 dummy-pin = { workspace = true }
 embedded-graphics = { workspace = true }
-embedded-nrf24l01 = { workspace = true }
 embedded-sdmmc = { workspace = true }
 heapless = { workspace = true }
 libm = { workspace = true }
-minicbor = { workspace = true }
 panic-probe = { workspace = true }
+sbus-rs = { workspace = true }
 ssd1306 = { workspace = true }
 thiserror-no-std = { workspace = true }
 

@@ -4,13 +4,10 @@
 use core::fmt::Write;
 use defmt::{error, info};
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
-use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
 use heapless::String;
 use libm::fabsf;
-use protocol::{Command, Status};
 use {defmt_rtt as _, panic_probe as _};
 
 mod board;
@@ -20,15 +17,11 @@ mod trace;
 
 use board::{BatteryMonitor, Board, Direction, EnginePwm, EnginePwmType};
 use display::Display;
-use radio::{Radio, RadioIrq};
+use radio::Command;
+use radio::Radio;
 
 static TRACE_EVENT_CHANNEL: trace::EventChannel = Channel::new();
 static DISPLAY_EVENT_CHANNEL: display::EventChannel = Channel::new();
-static STATUS: Mutex<CriticalSectionRawMutex, Status> = Mutex::new(Status {
-    roll: 0.0,
-    pitch: 0.0,
-    battery: 0.0,
-});
 
 macro_rules! trace_error {
     ( $( $e:expr ),* ) => {
@@ -40,7 +33,7 @@ macro_rules! trace_error {
     };
 }
 
-macro_rules! print_no_defmt_error { // FIXME: print error (serde_cbor::Error does not implement defmt::Format) -> migrate to ciborium
+/*macro_rules! print_no_defmt_error { // FIXME: print error (serde_cbor::Error does not implement defmt::Format) -> migrate to ciborium
     ( $( $msg:expr, $e:expr ),* ) => {
         $(
             let mut buf: String<256> = String::new();
@@ -48,7 +41,7 @@ macro_rules! print_no_defmt_error { // FIXME: print error (serde_cbor::Error doe
             error!("{}: {}", $msg, buf)
         )*
     };
-}
+}*/
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -117,22 +110,9 @@ async fn main(spawner: Spawner) {
 
     {
         info!("Setting up radio ...");
-        let radio = match Radio::init(board.radio_spi, board.radio_cs, board.radio_ce) {
-            Ok(radio) => radio,
-            Err(e) => {
-                print_no_defmt_error!("Failed to init radio", e);
-                DISPLAY_EVENT_CHANNEL
-                    .send(display::Event::Error(display::ErrorCode::FailedToInitRadio))
-                    .await;
-                trace_error!(e);
-                loop {
-                    Timer::after_secs(1).await;
-                }
-            }
-        };
-        if let Err(e) = spawner.spawn(radio_interrupt(
+        let radio = Radio::init(board.radio_uart);
+        if let Err(e) = spawner.spawn(poll_radio(
             radio,
-            board.radio_irq,
             board.engines,
             &DISPLAY_EVENT_CHANNEL,
             &TRACE_EVENT_CHANNEL,
@@ -157,78 +137,69 @@ async fn main(spawner: Spawner) {
 }
 
 #[embassy_executor::task]
-pub async fn radio_interrupt(
+pub async fn poll_radio(
     mut radio: Radio,
-    mut radio_irq: RadioIrq,
     mut engines: EnginePwmType,
     display_event_channel: &'static display::EventChannel,
     trace_event_channel: &'static trace::EventChannel,
 ) {
     loop {
-        radio_irq.wait_for_low().await;
-
-        // Clone latest status to avoid hanging too long in blocking mode while polling from radio.
-        let status = STATUS.lock().await.clone();
-
-        let cmd_opt = match radio.poll(&status) {
-            Ok(cmd) => cmd,
+        let cmd = match radio.next().await {
+            Ok(data) => data,
             Err(e) => {
-                print_no_defmt_error!("Failed to handle receive of incoming message", e);
+                error!("Failed get get data from radio: {}", e);
                 continue;
             }
         };
-        match cmd_opt {
-            None => {}
-            Some(cmd) => {
-                info!("Got command: {}", cmd);
 
-                // display command
-                display_event_channel
-                    .send(display::Event::Command(cmd.clone()))
-                    .await;
+        info!("Got command: {}", cmd);
 
-                // handle stop
-                if cmd.pose.into_iter().all(|e| e == 0.0) {
-                    engines.update(Direction::Stop, Direction::Stop);
-                    continue;
-                }
+        // display command
+        display_event_channel
+            .send(display::Event::Command(cmd.clone()))
+            .await;
 
-                let duty_y = fabsf(cmd.pose[1]);
-                let duty_x = fabsf(cmd.pose[0]);
-
-                // handle rotation
-                if cmd.pose[0] == 0.0 {
-                    match cmd.pose[1] {
-                        _ if cmd.pose[1] > 0.0 => {
-                            engines.update(Direction::Backward(duty_y), Direction::Forward(duty_y))
-                        }
-                        _ if cmd.pose[1] < 0.0 => {
-                            engines.update(Direction::Forward(duty_y), Direction::Backward(duty_y))
-                        }
-                        _ => engines.update(Direction::Stop, Direction::Stop),
-                    };
-                    continue;
-                }
-
-                // handle movement
-                match cmd.pose[0] {
-                    _ if cmd.pose[0] > 0.0 => engines.update(
-                        Direction::Forward((1.0 - duty_y) * duty_x),
-                        Direction::Forward(duty_x),
-                    ),
-                    _ if cmd.pose[0] < 0.0 => engines.update(
-                        Direction::Backward(duty_x),
-                        Direction::Backward((1.0 - duty_y) * duty_x),
-                    ),
-                    _ => engines.update(Direction::Stop, Direction::Stop),
-                }
-
-                // write command to trace
-                trace_event_channel
-                    .send(trace::Event::Command(cmd.clone()))
-                    .await;
-            }
+        // handle stop
+        if cmd.pitch == 0.0 && cmd.roll == 0.0 {
+            engines.update(Direction::Stop, Direction::Stop);
+            continue;
         }
+
+        let abs_pitch = fabsf(cmd.pitch);
+        let abs_roll = fabsf(cmd.roll);
+
+        // handle rotation
+        // roll is anyway `!= 0.0`
+        if cmd.pitch == 0.0 {
+            match cmd.roll {
+                _ if cmd.roll > 0.0 => {
+                    engines.update(Direction::Backward(abs_roll), Direction::Forward(abs_roll))
+                }
+                _ if cmd.roll < 0.0 => {
+                    engines.update(Direction::Forward(abs_roll), Direction::Backward(abs_roll))
+                }
+                _ => engines.update(Direction::Stop, Direction::Stop),
+            };
+            continue;
+        }
+
+        // handle movement
+        match cmd.pitch {
+            _ if cmd.pitch > 0.0 => engines.update(
+                Direction::Forward((1.0 - abs_pitch) * abs_roll),
+                Direction::Forward(abs_pitch),
+            ),
+            _ if cmd.pitch < 0.0 => engines.update(
+                Direction::Backward(abs_roll),
+                Direction::Backward((1.0 - abs_pitch) * abs_roll),
+            ),
+            _ => engines.update(Direction::Stop, Direction::Stop),
+        }
+
+        // write command to trace
+        trace_event_channel
+            .send(trace::Event::Command(cmd.clone()))
+            .await;
     }
 }
 
@@ -239,10 +210,6 @@ pub async fn battery_monitor(
 ) {
     loop {
         let voltage = battery_monitor.read();
-        {
-            let mut status_unlocked = STATUS.lock().await;
-            status_unlocked.battery = voltage;
-        }
         event_channel.send(display::Event::Battery(voltage)).await;
         Timer::after_secs(10).await;
     }

@@ -4,31 +4,26 @@ use cortex_m::prelude::_embedded_hal_blocking_delay_DelayUs;
 use defmt::info;
 use embassy_stm32::adc::Adc;
 use embassy_stm32::adc::VrefInt;
-use embassy_stm32::exti::ExtiInput;
-use embassy_stm32::gpio::{Level, Output, OutputType, Pull, Speed};
+use embassy_stm32::gpio::{Level, Output, OutputType, Speed};
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::Async;
-use embassy_stm32::peripherals::{
-    ADC1, DMA2_CH0, DMA2_CH2, I2C1, PA0, PA1, PA10, PA15, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14,
-    PB15, PB2, PB3, PB4, PB5, PB8, PB9, PC13, PC14, PC15, SPI1, SPI2, SPI3, TIM5,
-};
+use embassy_stm32::peripherals::{ADC1, PA0, PA1, PA2, PA3, PA4, PB3, PB4, PB5, PB8, PB9, TIM5};
 use embassy_stm32::spi::Config as SpiConfig;
 use embassy_stm32::spi::Spi;
 use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
+use embassy_stm32::usart;
+use embassy_stm32::usart::Config;
+use embassy_stm32::usart::Parity;
+use embassy_stm32::usart::StopBits;
+use embassy_stm32::usart::Uart;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
 
 type PwmC1 = PA0;
 type PwmC2 = PA1;
-type RadioSck = PA5;
-type RadioMiso = PA6;
-type RadioMosi = PA7;
-pub type RadioCs = Output<'static>; // PA8
-pub type RadioCe = Output<'static>; // PA9
-pub type RadioIrq = ExtiInput<'static>; // PA10
-pub type StorageCs = Output<'static>; // PA15
-type EngineInt1 = Output<'static>; // PB2
+type RadioRx = PA3;
+type RadioTx = PA2;
 type StorageSck = PB3;
 type StorageMiso = PB4;
 type StorageMosi = PB5;
@@ -37,27 +32,26 @@ type DisplaySda = PB9;
 // type ImuSck = PB13;
 // type ImuMiso = PB14;
 // type ImuMosi = PB15;
+type EngineInt1 = Output<'static>; // PB2
 type EngineInt2 = Output<'static>; // PC13
 type EngineInt3 = Output<'static>; // PC14
 type EngineInt4 = Output<'static>; // PC15
 
 pub type DisplayI2c = I2c<'static, Async>;
-// pub type ImuSpi = Spi<'static, SPI2, NoDma, NoDma>;
-pub type RadioSpi = Spi<'static, Async>; // SPI1
+pub type RadioUart = Uart<'static, Async>; // USART2
+pub type StorageCs = Output<'static>;
 pub type StorageSpi = Spi<'static, Async>; // SPI3
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
     I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
+    USART2 => usart::InterruptHandler<peripherals::USART2>;
 });
 
 pub struct Board {
     pub display_i2c: DisplayI2c,
     pub engines: BlackpillEnginePwm,
-    pub radio_spi: RadioSpi,
-    pub radio_cs: RadioCs,
-    pub radio_ce: RadioCe,
-    pub radio_irq: RadioIrq,
+    pub radio_uart: RadioUart,
     pub battery_monitor: BatteryMonitor,
     pub storage_spi: StorageSpi,
     pub storage_cs: StorageCs,
@@ -75,7 +69,7 @@ impl Board {
             display_sck,
             display_sda,
             Irqs,
-            p.DMA1_CH6,
+            p.DMA1_CH1,
             p.DMA1_CH0,
             hz(400_000),
             Default::default(),
@@ -99,7 +93,7 @@ impl Board {
             storage_sck,
             storage_mosi,
             storage_miso,
-            p.DMA1_CH5,
+            p.DMA1_CH7,
             p.DMA1_CH2,
             storage_spi_config,
         );
@@ -127,32 +121,27 @@ impl Board {
         );
 
         // init radio
-        let mut radio_spi_config = SpiConfig::default();
-        radio_spi_config.frequency = hz(2_000_000);
-        let radio_sck: RadioSck = p.PA5;
-        let radio_miso: RadioMiso = p.PA6;
-        let radio_mosi: RadioMosi = p.PA7;
-        let radio_cs = Output::new(p.PA8, Level::High, Speed::VeryHigh);
-        let radio_ce = Output::new(p.PA9, Level::High, Speed::VeryHigh);
-        let radio_irq = ExtiInput::new(p.PA10, p.EXTI10, Pull::Up);
-
-        let radio_spi = Spi::new(
-            p.SPI1,
-            radio_sck,
-            radio_mosi,
-            radio_miso,
-            p.DMA2_CH2,
-            p.DMA2_CH0,
-            radio_spi_config,
-        );
+        let mut radio_uart_config = Config::default();
+        radio_uart_config.baudrate = 100000;
+        radio_uart_config.parity = Parity::ParityEven;
+        radio_uart_config.stop_bits = StopBits::STOP2;
+        let radio_rx: RadioRx = p.PA3;
+        let radio_tx: RadioTx = p.PA2;
+        let radio_uart = Uart::new(
+            p.USART2,
+            radio_rx,
+            radio_tx,
+            Irqs,
+            p.DMA1_CH6,
+            p.DMA1_CH5,
+            radio_uart_config,
+        )
+        .unwrap();
 
         Board {
             display_i2c,
             engines,
-            radio_spi,
-            radio_cs,
-            radio_ce,
-            radio_irq,
+            radio_uart,
             battery_monitor,
             storage_spi,
             storage_cs,

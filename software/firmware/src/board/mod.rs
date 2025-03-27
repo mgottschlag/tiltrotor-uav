@@ -14,14 +14,9 @@ pub trait EnginePwm {
     fn update(&mut self, motor_left: Direction, motor_right: Direction);
 }
 
-pub trait RadioInterrupt {
-    fn activate(&mut self);
-    fn reset(&mut self);
-}
-
-pub trait PidTimer {
+/*pub trait PidTimer {
     fn elapsed_secs(&mut self) -> f32;
-}
+}*/
 
 #[derive(Format)]
 pub enum Direction {

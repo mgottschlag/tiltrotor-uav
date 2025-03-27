@@ -12,14 +12,15 @@ use embedded_sdmmc::{Mode, SdCardError, TimeSource, Timestamp, VolumeIdx, Volume
 use heapless::String;
 
 use crate::board::{StorageCs, StorageSpi};
+use crate::radio;
 
 pub type EventChannel = Channel<CriticalSectionRawMutex, Event, 10>;
 pub type ErrorString = String<256>;
 
-#[derive(defmt::Format)]
+#[derive(Clone, Debug, defmt::Format)]
 pub enum Event {
     Error(ErrorString),
-    Command(protocol::Command),
+    Command(radio::Command),
 }
 
 struct Clock;
