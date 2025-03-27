@@ -23,11 +23,11 @@ panic-probe = { workspace = true }
 ssd1306 = { workspace = true }
 thiserror-no-std = { workspace = true }
 
-embassy-embedded-hal = { version = "0.1.0", path = "../3rdparty/embassy/embassy-embedded-hal", features = ["defmt"] }
-embassy-executor     = { version = "0.5.0", path = "../3rdparty/embassy/embassy-executor",     features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"] }
-embassy-stm32        = { version = "0.1.0", path = "../3rdparty/embassy/embassy-stm32",        features = ["defmt", "unstable-pac", "time-driver-any", "stm32f411re", "memory-x", "exti", "chrono"], optional = true  }
-embassy-sync         = { version = "0.5.0", path = "../3rdparty/embassy/embassy-sync",         features = ["defmt"] }
-embassy-time         = { version = "0.3.0", path = "../3rdparty/embassy/embassy-time",         features = ["defmt", "defmt-timestamp-uptime"] }
+embassy-embedded-hal = { version = "0.3.0", features = ["defmt"] }
+embassy-executor     = { version = "0.7.0", features = ["defmt", "task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt"] }
+embassy-stm32        = { version = "0.2.0", features = ["defmt", "stm32f411ce", "unstable-pac", "memory-x", "time-driver-tim4", "exti", "chrono"], optional = true }
+embassy-sync         = { version = "0.6.2", features = ["defmt"] }
+embassy-time         = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 
 [profile.release]
 debug = 2

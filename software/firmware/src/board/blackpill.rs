@@ -2,19 +2,20 @@ use super::{Direction, EnginePwm};
 
 use cortex_m::prelude::_embedded_hal_blocking_delay_DelayUs;
 use defmt::info;
-use embassy_stm32::adc::{Adc, VrefInt};
-use embassy_stm32::dma::NoDma;
+use embassy_stm32::adc::Adc;
+use embassy_stm32::adc::VrefInt;
 use embassy_stm32::exti::ExtiInput;
-use embassy_stm32::gpio::{Input, Level, Output, OutputType, Pull, Speed};
+use embassy_stm32::gpio::{Level, Output, OutputType, Pull, Speed};
 use embassy_stm32::i2c::I2c;
+use embassy_stm32::mode::Async;
 use embassy_stm32::peripherals::{
-    ADC1, I2C1, PA0, PA1, PA10, PA15, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14, PB15, PB2, PB3,
-    PB4, PB5, PB8, PB9, PC13, PC14, PC15, SPI1, SPI2, SPI3, TIM5,
+    ADC1, DMA2_CH0, DMA2_CH2, I2C1, PA0, PA1, PA10, PA15, PA4, PA5, PA6, PA7, PA8, PA9, PB13, PB14,
+    PB15, PB2, PB3, PB4, PB5, PB8, PB9, PC13, PC14, PC15, SPI1, SPI2, SPI3, TIM5,
 };
-use embassy_stm32::spi::{Config as SpiConfig, Spi};
+use embassy_stm32::spi::Config as SpiConfig;
+use embassy_stm32::spi::Spi;
 use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
-use embassy_stm32::timer::Channel;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
 
@@ -23,11 +24,11 @@ type PwmC2 = PA1;
 type RadioSck = PA5;
 type RadioMiso = PA6;
 type RadioMosi = PA7;
-pub type RadioCs = Output<'static, PA8>;
-pub type RadioCe = Output<'static, PA9>;
-pub type RadioIrq = ExtiInput<'static, PA10>;
-pub type StorageCs = Output<'static, PA15>;
-type EngineInt1 = Output<'static, PB2>;
+pub type RadioCs = Output<'static>; // PA8
+pub type RadioCe = Output<'static>; // PA9
+pub type RadioIrq = ExtiInput<'static>; // PA10
+pub type StorageCs = Output<'static>; // PA15
+type EngineInt1 = Output<'static>; // PB2
 type StorageSck = PB3;
 type StorageMiso = PB4;
 type StorageMosi = PB5;
@@ -36,14 +37,14 @@ type DisplaySda = PB9;
 // type ImuSck = PB13;
 // type ImuMiso = PB14;
 // type ImuMosi = PB15;
-type EngineInt2 = Output<'static, PC13>;
-type EngineInt3 = Output<'static, PC14>;
-type EngineInt4 = Output<'static, PC15>;
+type EngineInt2 = Output<'static>; // PC13
+type EngineInt3 = Output<'static>; // PC14
+type EngineInt4 = Output<'static>; // PC15
 
-pub type DisplayI2c = I2c<'static, I2C1>;
-pub type RadioSpi = Spi<'static, SPI1, NoDma, NoDma>;
+pub type DisplayI2c = I2c<'static, Async>;
 // pub type ImuSpi = Spi<'static, SPI2, NoDma, NoDma>;
-pub type StorageSpi = Spi<'static, SPI3, NoDma, NoDma>;
+pub type RadioSpi = Spi<'static, Async>; // SPI1
+pub type StorageSpi = Spi<'static, Async>; // SPI3
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
@@ -74,15 +75,15 @@ impl Board {
             display_sck,
             display_sda,
             Irqs,
-            NoDma,
-            NoDma,
+            p.DMA1_CH6,
+            p.DMA1_CH0,
             hz(400_000),
             Default::default(),
         );
 
         // init battery adc
-        let mut battery_delay = Delay;
-        let battery_adc = Adc::new(p.ADC1, &mut battery_delay);
+        let battery_delay = Delay;
+        let battery_adc = Adc::new(p.ADC1);
         let battery_monitor = BatteryMonitor::init(battery_adc, battery_delay, p.PA4);
 
         // init storage
@@ -98,8 +99,8 @@ impl Board {
             storage_sck,
             storage_mosi,
             storage_miso,
-            NoDma,
-            NoDma,
+            p.DMA1_CH5,
+            p.DMA1_CH2,
             storage_spi_config,
         );
 
@@ -133,15 +134,15 @@ impl Board {
         let radio_mosi: RadioMosi = p.PA7;
         let radio_cs = Output::new(p.PA8, Level::High, Speed::VeryHigh);
         let radio_ce = Output::new(p.PA9, Level::High, Speed::VeryHigh);
-        let radio_irq = ExtiInput::new(Input::new(p.PA10, Pull::Up), p.EXTI10);
+        let radio_irq = ExtiInput::new(p.PA10, p.EXTI10, Pull::Up);
 
         let radio_spi = Spi::new(
             p.SPI1,
             radio_sck,
             radio_mosi,
             radio_miso,
-            NoDma,
-            NoDma,
+            p.DMA2_CH2,
+            p.DMA2_CH0,
             radio_spi_config,
         );
 
@@ -179,10 +180,10 @@ impl BlackpillEnginePwm {
         int3: EngineInt3,
         int4: EngineInt4,
     ) -> Self {
-        pwm.set_duty(Channel::Ch1, 0);
-        pwm.set_duty(Channel::Ch2, 0);
-        pwm.enable(Channel::Ch1);
-        pwm.enable(Channel::Ch2);
+        pwm.ch1().set_duty_cycle(0);
+        pwm.ch2().set_duty_cycle(0);
+        pwm.ch1().enable();
+        pwm.ch2().enable();
         BlackpillEnginePwm {
             pwm,
             int1,
@@ -193,7 +194,7 @@ impl BlackpillEnginePwm {
     }
 
     fn get_max_duty(&self) -> u16 {
-        self.pwm.get_max_duty()
+        self.pwm.max_duty_cycle()
     }
 
     fn scale_duty(&self, duty: f32) -> u16 {
@@ -207,8 +208,8 @@ impl BlackpillEnginePwm {
     fn set_duty(&mut self, duty: [f32; 2]) {
         let scaled_duty = duty.map(|d| self.scale_duty(d));
         info!("duty={} => scaled_duty={}", duty, scaled_duty);
-        self.pwm.set_duty(Channel::Ch1, scaled_duty[0]);
-        self.pwm.set_duty(Channel::Ch2, scaled_duty[1]);
+        self.pwm.ch1().set_duty_cycle(scaled_duty[0]);
+        self.pwm.ch2().set_duty_cycle(scaled_duty[1]);
     }
 }
 
@@ -269,7 +270,7 @@ impl BatteryMonitor {
     }
 
     pub fn read(&mut self) -> f32 {
-        let v = self.adc.read(&mut self.pin) as f32;
+        let v = self.adc.blocking_read(&mut self.pin) as f32;
         v * 996.0 / 274.4 / 1000.0
     }
 }

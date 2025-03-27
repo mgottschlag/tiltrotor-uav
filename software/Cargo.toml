@@ -26,7 +26,7 @@ embedded-sdmmc = { version = "0.7.0", features = ["defmt-log"], default-features
 heapless = { version = "0.8.0", features = ["defmt-03"] }
 libm = "0.2.8"
 panic-probe = { version = "0.3.1", features = ["print-defmt"] }
-ssd1306 = { git = "https://github.com/ne0h/ssd1306", branch = "update-display-interface" }
+ssd1306 = "0.10.0"
 thiserror-no-std = "2.0.2"
 
 # remote
