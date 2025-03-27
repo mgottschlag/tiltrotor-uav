@@ -84,7 +84,7 @@ impl Board {
                 polarity: Polarity::IdleLow,
                 phase: Phase::CaptureOnFirstTransition,
             },
-            2.mhz(),
+            2_000_000.hz(),
             &mut clocks,
         );
 
@@ -100,7 +100,7 @@ impl Board {
                 polarity: Polarity::IdleLow,
                 phase: Phase::CaptureOnFirstTransition,
             },
-            2.mhz(),
+            2_000_000.hz(),
             &mut clocks,
         );
         let imu_timer = Timer::new(device.TIM1, &rcc_clocks);

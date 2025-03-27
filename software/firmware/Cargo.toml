@@ -33,11 +33,7 @@ embassy-time         = { version = "0.3.0", path = "../3rdparty/embassy/embassy-
 debug = 2
 
 [features]
-# Compile for a bluepill-based prototype (STM32F1).
-# bluepill = [ "stm32f1xx-hal" ]
 # Compile for a blackpill-based prototype (STM32F4).
 blackpill = [ "embassy-stm32" ]
-# Compile for an NRF52840.
-# feather_nrf52840 = [ "nrf52840-hal" ]
 # Compile for the flightcontroller
-# flightcontroller = [ "stm32g4xx-hal" ]
+flightcontroller = [ "embassy-stm32" ]

@@ -12,11 +12,7 @@ rustflags = [
 DEFMT_LOG = "debug"
 
 [alias]
-build-bluepill = "build --target=thumbv7m-none-eabi --features=bluepill --release"
 build-blackpill = "build --target=thumbv7em-none-eabihf --features=blackpill --release"
-build-nrf52 = "build --target=thumbv7em-none-eabihf --features=feather_nrf52840 --release"
 build-flightcontroller = "build --target=thumbv7em-none-eabihf --features=flightcontroller --release"
-run-bluepill = "run --target=thumbv7m-none-eabi --features=bluepill --release"
 run-blackpill = "run --target=thumbv7em-none-eabihf --features=blackpill --release"
-run-nrf52 = "run --target=thumbv7em-none-eabihf --features=feather_nrf52840 --release"
 run-flightcontroller = "run --target=thumbv7em-none-eabihf --features=flightcontroller --release"
