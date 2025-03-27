@@ -1,3 +1,0 @@
-[submodule "software/3rdparty/embassy"]
-	path = software/3rdparty/embassy
-	url = https://github.com/embassy-rs/embassy.git
