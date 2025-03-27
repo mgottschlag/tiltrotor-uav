@@ -48,6 +48,7 @@ async fn main(spawner: Spawner) {
     info!("Starting ...");
     let board = Board::init();
 
+    #[cfg(feature = "display")]
     {
         info!("Setting up display ...");
         let display = match Display::init(board.display_i2c) {
@@ -70,6 +71,7 @@ async fn main(spawner: Spawner) {
             .await;
     }
 
+    #[cfg(feature = "sd-trace")]
     {
         info!("Setting up trace ...");
         if let Err(e) = spawner.spawn(trace::run(
@@ -89,6 +91,7 @@ async fn main(spawner: Spawner) {
         }
     }
 
+    #[cfg(feature = "battery-monitor")]
     {
         info!("Setting up battery monitor ...");
         if let Err(e) = spawner.spawn(battery_monitor(
@@ -108,6 +111,7 @@ async fn main(spawner: Spawner) {
         }
     }
 
+    #[cfg(feature = "radio")]
     {
         info!("Setting up radio ...");
         let radio = Radio::init(board.radio_uart);
