@@ -1,8 +1,6 @@
 [workspace]
 members = [
     "firmware",
-    "protocol",
-    "remote",
 ]
 resolver = "2"
 
@@ -12,16 +10,12 @@ resolver = "2"
 defmt = "0.3.8"
 defmt-rtt = "0.4.1"
 
-# serializer
-minicbor = "0.24.0"
-
 # firmware
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"]}
 cortex-m-rt = "0.7.3"
 display-interface = { version = "0.5.0", features = ["defmt-03"] }
 dummy-pin = "1.0.0"
 embedded-graphics = "0.8.1"
-embedded-nrf24l01 = { git = "https://github.com/ne0h/embedded-nrf24l01", branch = "ack-payload" }
 embedded-sdmmc = { version = "0.7.0", features = ["defmt-log"], default-features = false }
 heapless = { version = "0.8.0", features = ["defmt-03"] }
 libm = "0.2.8"
@@ -29,15 +23,6 @@ panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 sbus-rs = { version = "0.1.2", features = ["async"] }
 ssd1306 = "0.10.0"
 thiserror-no-std = "2.0.2"
-
-# remote
-bevy = { version = "0.13.1", default-features = false, features = ["bevy_asset", "bevy_text", "wayland"] }
-bevy-tokio-tasks = { git = "https://github.com/foxzool/bevy-tokio-tasks", branch = "master" }
-futures = "0.3.30"
-nrf24l01-stick-driver = { git = "https://github.com/mgottschlag/nrf24l01-stick.git", rev = "8352dc6" }
-structopt = "0.3.26"
-thiserror = "1.0.58"
-tokio = { version = "1.38", features = [ "full" ] }
 
 [profile]
 [profile.release]

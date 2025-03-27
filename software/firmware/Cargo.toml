@@ -5,8 +5,6 @@ authors = ["Mathias Gottschlag <mgottschlag@gmail.com>", "Maximilian Hess <mail@
 edition = "2021"
 
 [dependencies]
-protocol = { path = "../protocol" }
-
 cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
 defmt = { workspace = true }
@@ -24,7 +22,7 @@ thiserror-no-std = { workspace = true }
 
 embassy-embedded-hal = { version = "0.3.0", features = ["defmt"] }
 embassy-executor     = { version = "0.7.0", features = ["defmt", "task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt"] }
-embassy-stm32        = { version = "0.2.0", features = ["defmt", "stm32f411ce", "unstable-pac", "memory-x", "time-driver-tim4", "exti", "chrono"], optional = true }
+embassy-stm32        = { version = "0.2.0", features = ["defmt", "unstable-pac", "memory-x", "time-driver-tim4", "exti", "chrono"], optional = true }
 embassy-sync         = { version = "0.6.2", features = ["defmt"] }
 embassy-time         = { version = "0.4.0", features = ["defmt", "defmt-timestamp-uptime", "tick-hz-32_768"] }
 
@@ -32,7 +30,5 @@ embassy-time         = { version = "0.4.0", features = ["defmt", "defmt-timestam
 debug = 2
 
 [features]
-# Compile for a blackpill-based prototype (STM32F4).
-blackpill = [ "embassy-stm32" ]
-# Compile for the flightcontroller
-flightcontroller = [ "embassy-stm32" ]
+blackpill        = [ "embassy-stm32/stm32f411ce" ] # Compile for a blackpill-based prototype (STM32F4).
+flightcontroller = [ "embassy-stm32/stm32f429zi" ] # Compile for the flightcontroller
