@@ -1,13 +1,12 @@
 #![no_main]
 #![no_std]
 
-use core::{f32, fmt::Write};
+use core::fmt::Write;
 use defmt::{error, info};
 use embassy_executor::Spawner;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use heapless::String;
-use libm::fabsf;
 use {defmt_rtt as _, panic_probe as _};
 
 mod board;
@@ -15,9 +14,8 @@ mod display;
 mod radio;
 mod trace;
 
-use board::{BatteryMonitor, Board, Direction, EnginePwm, EnginePwmType};
+use board::{BatteryMonitor, Board, EnginePwm, EnginePwmType};
 use display::Display;
-use radio::Command;
 use radio::Radio;
 
 static TRACE_EVENT_CHANNEL: trace::EventChannel = Channel::new();
@@ -33,20 +31,10 @@ macro_rules! trace_error {
     };
 }
 
-/*macro_rules! print_no_defmt_error { // FIXME: print error (serde_cbor::Error does not implement defmt::Format) -> migrate to ciborium
-    ( $( $msg:expr, $e:expr ),* ) => {
-        $(
-            let mut buf: String<256> = String::new();
-            write!(&mut buf, "{:?}", $e).ok();
-            error!("{}: {}", $msg, buf)
-        )*
-    };
-}*/
-
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Starting ...");
-    let board = Board::init();
+    let board = Board::init(motor::Car::new());
 
     #[cfg(feature = "display")]
     {
@@ -67,7 +55,7 @@ async fn main(spawner: Spawner) {
             }
         }
         DISPLAY_EVENT_CHANNEL
-            .send(display::Event::Command(Command::new()))
+            .send(display::Event::Command(motor::Command::new()))
             .await;
     }
 
@@ -115,24 +103,14 @@ async fn main(spawner: Spawner) {
     {
         info!("Setting up radio ...");
         let radio = Radio::init(board.radio_uart);
-        if let Err(e) = spawner.spawn(poll_radio(
+        info!("Done setting up radio");
+        poll_radio(
             radio,
             board.engines,
             &DISPLAY_EVENT_CHANNEL,
             &TRACE_EVENT_CHANNEL,
-        )) {
-            error!("Failed to spawn radio task: {}", e);
-            DISPLAY_EVENT_CHANNEL
-                .send(display::Event::Error(
-                    display::ErrorCode::FailedToSpawnRadioTask,
-                ))
-                .await;
-            trace_error!(e);
-            loop {
-                Timer::after_secs(1).await;
-            }
-        }
-        info!("Done setting up radio");
+        )
+        .await;
     }
 
     loop {
@@ -140,10 +118,9 @@ async fn main(spawner: Spawner) {
     }
 }
 
-#[embassy_executor::task]
-pub async fn poll_radio(
+pub async fn poll_radio<M: motor::Type>(
     mut radio: Radio,
-    mut engines: EnginePwmType,
+    mut engines: EnginePwmType<M>,
     display_event_channel: &'static display::EventChannel,
     trace_event_channel: &'static trace::EventChannel,
 ) {
@@ -165,29 +142,13 @@ pub async fn poll_radio(
             .send(display::Event::Command(cmd.clone()))
             .await;
 
-        let diff = fabsf(cmd.pitch) * cmd.roll;
-        let motor_left = motor_dir(cmd.pitch - diff);
-        let motor_right = motor_dir(cmd.pitch + diff);
-        info!(
-            "motor_left={}, motor_right={}, diff={}",
-            motor_left, motor_right, diff
-        );
-
-        engines.update(motor_left, motor_right);
+        engines.update(&cmd);
 
         // write command to trace
         #[cfg(feature = "sd-trace")]
         trace_event_channel
             .send(trace::Event::Command(cmd.clone()))
             .await;
-    }
-}
-
-fn motor_dir(input: f32) -> Direction {
-    match input {
-        _ if input < 0.0 => Direction::Backward(input),
-        _ if input > 0.0 => Direction::Forward(input),
-        _ => Direction::Stop,
     }
 }
 

@@ -20,6 +20,7 @@ use embassy_stm32::usart::Uart;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
 use libm::fabs;
+use motor::Command;
 
 type PwmC1 = PA0;
 type PwmC2 = PA1;
@@ -49,17 +50,17 @@ bind_interrupts!(struct Irqs {
     USART2 => usart::InterruptHandler<peripherals::USART2>;
 });
 
-pub struct Board {
+pub struct Board<M: motor::Type> {
     pub display_i2c: DisplayI2c,
-    pub engines: BlackpillEnginePwm,
+    pub engines: BlackpillEnginePwm<M>,
     pub radio_uart: RadioUart,
     pub battery_monitor: BatteryMonitor,
     pub storage_spi: StorageSpi,
     pub storage_cs: StorageCs,
 }
 
-impl Board {
-    pub fn init() -> Board {
+impl<M: motor::Type> Board<M> {
+    pub fn init(motor_driver: M) -> Board<M> {
         let p = embassy_stm32::init(Default::default());
 
         // init display
@@ -114,6 +115,7 @@ impl Board {
             Default::default(),
         );
         let engines = BlackpillEnginePwm::init(
+            motor_driver,
             pwm,
             Output::new(p.PB2, Level::Low, Speed::Medium),
             Output::new(p.PC13, Level::Low, Speed::Medium),
@@ -150,11 +152,15 @@ impl Board {
     }
 }
 
-pub type EnginePwmType = BlackpillEnginePwm;
+pub type EnginePwmType<M> = BlackpillEnginePwm<M>;
 
 const MINIMAL_DUTY: u16 = 150;
 
-pub struct BlackpillEnginePwm {
+pub struct BlackpillEnginePwm<M>
+where
+    M: motor::Type,
+{
+    motor_driver: M,
     pwm: SimplePwm<'static, TIM5>,
     int1: EngineInt1,
     int2: EngineInt2,
@@ -162,8 +168,12 @@ pub struct BlackpillEnginePwm {
     int4: EngineInt4,
 }
 
-impl BlackpillEnginePwm {
+impl<M> BlackpillEnginePwm<M>
+where
+    M: motor::Type,
+{
     pub fn init(
+        motor_driver: M,
         mut pwm: SimplePwm<'static, TIM5>,
         int1: EngineInt1,
         int2: EngineInt2,
@@ -175,6 +185,7 @@ impl BlackpillEnginePwm {
         pwm.ch1().enable();
         pwm.ch2().enable();
         BlackpillEnginePwm {
+            motor_driver,
             pwm,
             int1,
             int2,
@@ -211,14 +222,18 @@ impl BlackpillEnginePwm {
     }
 }
 
-impl EnginePwm for BlackpillEnginePwm {
-    fn update(&mut self, motor_left: Direction, motor_right: Direction) {
-        info!("motor_left={:?}, motor_right={:?}", motor_left, motor_right);
+impl<M: motor::Type> EnginePwm for BlackpillEnginePwm<M> {
+    fn update(&mut self, cmd: &Command) {
+        let directions = self.motor_driver.translate(cmd);
+        info!(
+            "motor_left={:?}, motor_right={:?}",
+            directions[0], directions[1]
+        );
 
         let mut duty_left = 0.0;
         let mut duty_right = 0.0;
 
-        match motor_left {
+        match directions[0] {
             Direction::Forward(duty) => {
                 self.int1.set_high();
                 self.int2.set_low();
@@ -234,7 +249,7 @@ impl EnginePwm for BlackpillEnginePwm {
                 self.int2.set_low();
             }
         }
-        match motor_right {
+        match directions[1] {
             Direction::Forward(duty) => {
                 self.int3.set_low();
                 self.int4.set_high();

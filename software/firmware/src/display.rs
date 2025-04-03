@@ -12,8 +12,9 @@ use embedded_graphics::{
 use heapless::String;
 use ssd1306::{mode::BufferedGraphicsMode, prelude::*, I2CDisplayInterface, Ssd1306};
 
+use motor::Command;
+
 use crate::board::DisplayI2c;
-use crate::radio;
 
 pub type EventChannel = Channel<CriticalSectionRawMutex, Event, 10>;
 
@@ -36,7 +37,7 @@ pub enum ErrorCode {
 
 pub enum Event {
     Error(ErrorCode),
-    Command(radio::Command),
+    Command(Command),
     Battery(f32),
 }
 

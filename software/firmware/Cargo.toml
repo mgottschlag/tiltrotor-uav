@@ -5,6 +5,8 @@ authors = ["Mathias Gottschlag <mgottschlag@gmail.com>", "Maximilian Hess <mail@
 edition = "2021"
 
 [dependencies]
+motor = { path = "../motor" }
+
 cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
 defmt = { workspace = true }
@@ -30,8 +32,8 @@ embassy-time         = { version = "0.4.0", features = ["defmt", "defmt-timestam
 debug = 2
 
 [features]
-#default = ["battery-monitor", "display", "radio", "sd-trace"]
-default = ["radio"]
+default = ["battery-monitor", "display", "radio", "sd-trace"]
+#default = ["radio"]
 
 blackpill        = [ "embassy-stm32/stm32f411ce" ] # Compile for a blackpill-based prototype (STM32F4).
 flightcontroller = [ "embassy-stm32/stm32f429zi" ] # Compile for the flightcontroller

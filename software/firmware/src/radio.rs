@@ -1,5 +1,7 @@
 use sbus_rs::channels_parsing;
 
+use motor::Command;
+
 use crate::board::RadioUart;
 
 const SCALE_MIN: u16 = 240;
@@ -55,24 +57,5 @@ fn scale_thrust(input: u16) -> f32 {
         u16::MIN..SCALE_MIN => 0.0,
         SCALE_MIN..SCALE_MAX => (input - SCALE_MIN) as f32 / (SCALE_MAX - SCALE_MIN) as f32,
         SCALE_MAX..=u16::MAX => 1.0,
-    }
-}
-
-#[derive(Clone, Debug, defmt::Format)]
-pub struct Command {
-    pub roll: f32,   // [-1.0 .. 1.0]
-    pub pitch: f32,  // [-1.0 .. 1.0]
-    pub yaw: f32,    // [-1.0 .. 1.0]
-    pub thrust: f32, // [0.0 .. 1.0]
-}
-
-impl Command {
-    pub fn new() -> Self {
-        Command {
-            roll: 0.0,
-            pitch: 0.0,
-            yaw: 0.0,
-            thrust: 0.0,
-        }
     }
 }

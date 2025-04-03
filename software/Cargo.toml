@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "firmware",
+    "motor",
 ]
 resolver = "2"
 

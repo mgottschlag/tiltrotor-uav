@@ -1,4 +1,5 @@
-use defmt::Format;
+use motor::Command;
+use motor::Direction;
 
 #[cfg(feature = "blackpill")]
 pub use blackpill::*;
@@ -11,16 +12,9 @@ mod blackpill;
 mod flightcontroller;
 
 pub trait EnginePwm {
-    fn update(&mut self, motor_left: Direction, motor_right: Direction);
+    fn update(&mut self, cmd: &Command);
 }
 
 /*pub trait PidTimer {
     fn elapsed_secs(&mut self) -> f32;
 }*/
-
-#[derive(Format)]
-pub enum Direction {
-    Forward(f32),
-    Backward(f32),
-    Stop,
-}
