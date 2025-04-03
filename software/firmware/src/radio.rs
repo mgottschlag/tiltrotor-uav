@@ -30,19 +30,31 @@ impl Radio {
         let channels = channels_parsing(&buf);
 
         Ok(Command {
-            roll: scale(channels[3]),
-            pitch: scale(channels[2]),
-            yaw: scale(channels[0]),
-            thrust: scale(channels[1]),
+            roll: scale_principal_axis(channels[0]),
+            pitch: scale_principal_axis(channels[1]),
+            yaw: scale_principal_axis(channels[3]),
+            thrust: scale_thrust(channels[2]),
         })
     }
 }
 
-fn scale(input: u16) -> f32 {
+fn scale_principal_axis(input: u16) -> f32 {
+    // Set -1.0 and 1.0 explicitely to avoid rounding error.
     match input {
         SCALE_MID => 0.0,
-        u16::MIN..SCALE_MID => (input - SCALE_MID) as f32 / (SCALE_MID - SCALE_MIN) as f32,
+        u16::MIN..SCALE_MID => {
+            (SCALE_MID - input) as f32 / (SCALE_MID - SCALE_MIN) as f32 * -1.0f32
+        }
         SCALE_MID..=u16::MAX => (input - SCALE_MID) as f32 / (SCALE_MAX - SCALE_MID) as f32,
+    }
+}
+
+fn scale_thrust(input: u16) -> f32 {
+    // Set 0.0 and 1.0 explicitely to avoid rounding error.
+    match input {
+        u16::MIN..SCALE_MIN => 0.0,
+        SCALE_MIN..SCALE_MAX => (input - SCALE_MIN) as f32 / (SCALE_MAX - SCALE_MIN) as f32,
+        SCALE_MAX..=u16::MAX => 1.0,
     }
 }
 

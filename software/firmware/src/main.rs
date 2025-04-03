@@ -1,7 +1,7 @@
 #![no_main]
 #![no_std]
 
-use core::fmt::Write;
+use core::{f32, fmt::Write};
 use defmt::{error, info};
 use embassy_executor::Spawner;
 use embassy_sync::channel::Channel;
@@ -147,6 +147,7 @@ pub async fn poll_radio(
     display_event_channel: &'static display::EventChannel,
     trace_event_channel: &'static trace::EventChannel,
 ) {
+    info!("Polling radio ...");
     loop {
         let cmd = match radio.next().await {
             Ok(data) => data,
@@ -159,51 +160,34 @@ pub async fn poll_radio(
         info!("Got command: {}", cmd);
 
         // display command
+        #[cfg(feature = "display")]
         display_event_channel
             .send(display::Event::Command(cmd.clone()))
             .await;
 
-        // handle stop
-        if cmd.pitch == 0.0 && cmd.roll == 0.0 {
-            engines.update(Direction::Stop, Direction::Stop);
-            continue;
-        }
+        let diff = fabsf(cmd.pitch) * cmd.roll;
+        let motor_left = motor_dir(cmd.pitch - diff);
+        let motor_right = motor_dir(cmd.pitch + diff);
+        info!(
+            "motor_left={}, motor_right={}, diff={}",
+            motor_left, motor_right, diff
+        );
 
-        let abs_pitch = fabsf(cmd.pitch);
-        let abs_roll = fabsf(cmd.roll);
-
-        // handle rotation
-        // roll is anyway `!= 0.0`
-        if cmd.pitch == 0.0 {
-            match cmd.roll {
-                _ if cmd.roll > 0.0 => {
-                    engines.update(Direction::Backward(abs_roll), Direction::Forward(abs_roll))
-                }
-                _ if cmd.roll < 0.0 => {
-                    engines.update(Direction::Forward(abs_roll), Direction::Backward(abs_roll))
-                }
-                _ => engines.update(Direction::Stop, Direction::Stop),
-            };
-            continue;
-        }
-
-        // handle movement
-        match cmd.pitch {
-            _ if cmd.pitch > 0.0 => engines.update(
-                Direction::Forward((1.0 - abs_pitch) * abs_roll),
-                Direction::Forward(abs_pitch),
-            ),
-            _ if cmd.pitch < 0.0 => engines.update(
-                Direction::Backward(abs_roll),
-                Direction::Backward((1.0 - abs_pitch) * abs_roll),
-            ),
-            _ => engines.update(Direction::Stop, Direction::Stop),
-        }
+        engines.update(motor_left, motor_right);
 
         // write command to trace
+        #[cfg(feature = "sd-trace")]
         trace_event_channel
             .send(trace::Event::Command(cmd.clone()))
             .await;
+    }
+}
+
+fn motor_dir(input: f32) -> Direction {
+    match input {
+        _ if input < 0.0 => Direction::Backward(input),
+        _ if input > 0.0 => Direction::Forward(input),
+        _ => Direction::Stop,
     }
 }
 

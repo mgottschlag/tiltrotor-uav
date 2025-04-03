@@ -19,6 +19,7 @@ use embassy_stm32::usart::StopBits;
 use embassy_stm32::usart::Uart;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_time::Delay;
+use libm::fabs;
 
 type PwmC1 = PA0;
 type PwmC2 = PA1;
@@ -195,8 +196,16 @@ impl BlackpillEnginePwm {
     }
 
     fn set_duty(&mut self, duty: [f32; 2]) {
-        let scaled_duty = duty.map(|d| self.scale_duty(d));
-        info!("duty={} => scaled_duty={}", duty, scaled_duty);
+        let scaled_duty = duty.map(|d| {
+            self.scale_duty(fabs(d as f64) as f32)
+                .clamp(0, self.get_max_duty())
+        });
+        info!(
+            "duty={} => scaled_duty={} ({})",
+            duty,
+            scaled_duty,
+            self.pwm.max_duty_cycle()
+        );
         self.pwm.ch1().set_duty_cycle(scaled_duty[0]);
         self.pwm.ch2().set_duty_cycle(scaled_duty[1]);
     }
