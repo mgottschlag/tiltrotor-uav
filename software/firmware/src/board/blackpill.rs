@@ -166,6 +166,7 @@ where
     int2: EngineInt2,
     int3: EngineInt3,
     int4: EngineInt4,
+    last: [Direction; 4],
 }
 
 impl<M> BlackpillEnginePwm<M>
@@ -191,6 +192,7 @@ where
             int2,
             int3,
             int4,
+            last: [Direction::Stop; 4],
         }
     }
 
@@ -212,7 +214,7 @@ where
                 .clamp(0, self.get_max_duty())
         });
         info!(
-            "duty={} => scaled_duty={} ({})",
+            "duty={} => scaled_duty={} (max={})",
             duty,
             scaled_duty,
             self.pwm.max_duty_cycle()
@@ -224,7 +226,11 @@ where
 
 impl<M: motor::Type> EnginePwm for BlackpillEnginePwm<M> {
     fn update(&mut self, cmd: &Command) {
-        let directions = self.motor_driver.translate(cmd);
+        let directions = self.motor_driver.update(cmd);
+        match directions == self.last {
+            true => return,
+            false => self.last = directions,
+        }
         info!(
             "motor_left={:?}, motor_right={:?}",
             directions[0], directions[1]

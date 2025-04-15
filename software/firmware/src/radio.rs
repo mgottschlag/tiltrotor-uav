@@ -20,23 +20,34 @@ impl Radio {
     pub async fn next(&mut self) -> Result<Command, embassy_stm32::usart::Error> {
         let mut buf = [0u8; 25];
 
-        // Read until header (`0x0f`) is detected.
-        loop {
-            self.uart.read(&mut buf[0..1]).await?;
-            if buf[0] == 0x0f {
-                break;
+        'outer: loop {
+            // Read until header (`0x0f`) is detected.
+            loop {
+                self.uart.read(&mut buf[0..1]).await?;
+                if buf[0] == 0x0f {
+                    break;
+                }
             }
-        }
-        // Read the payload (23 bytes) and the footer 1 bytes.
-        self.uart.read(&mut buf[1..]).await?;
-        let channels = channels_parsing(&buf);
+            // Read the payload (23 bytes) and the footer (1 byte).
+            self.uart.read(&mut buf[1..]).await?;
+            if buf[24] != 0x00 {
+                continue;
+            }
 
-        Ok(Command {
-            roll: scale_principal_axis(channels[0]),
-            pitch: scale_principal_axis(channels[1]),
-            yaw: scale_principal_axis(channels[3]),
-            thrust: scale_thrust(channels[2]),
-        })
+            let channels = channels_parsing(&buf);
+            for channel in channels.iter() {
+                if *channel > 1800 || *channel < 240 {
+                    continue 'outer;
+                }
+            }
+
+            return Ok(Command {
+                roll: scale_principal_axis(channels[0]),
+                pitch: scale_principal_axis(channels[1]),
+                yaw: scale_principal_axis(channels[3]),
+                thrust: scale_thrust(channels[2]),
+            });
+        }
     }
 }
 

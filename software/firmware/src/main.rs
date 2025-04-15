@@ -7,6 +7,7 @@ use embassy_executor::Spawner;
 use embassy_sync::channel::Channel;
 use embassy_time::Timer;
 use heapless::String;
+use motor::Command;
 use {defmt_rtt as _, panic_probe as _};
 
 mod board;
@@ -34,7 +35,7 @@ macro_rules! trace_error {
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Starting ...");
-    let board = Board::init(motor::Car::new());
+    let board = Board::init(motor::car::Car::new());
 
     #[cfg(feature = "display")]
     {
@@ -125,15 +126,19 @@ pub async fn poll_radio<M: motor::Type>(
     trace_event_channel: &'static trace::EventChannel,
 ) {
     info!("Polling radio ...");
+    let mut last_cmd = Command::new();
     loop {
         let cmd = match radio.next().await {
             Ok(data) => data,
+            Err(embassy_stm32::usart::Error::Noise) => continue,
             Err(e) => {
                 error!("Failed get get data from radio: {}", e);
                 continue;
             }
         };
-
+        if cmd == last_cmd {
+            continue;
+        }
         info!("Got command: {}", cmd);
 
         // display command
@@ -149,6 +154,8 @@ pub async fn poll_radio<M: motor::Type>(
         trace_event_channel
             .send(trace::Event::Command(cmd.clone()))
             .await;
+
+        last_cmd = cmd;
     }
 }
 
