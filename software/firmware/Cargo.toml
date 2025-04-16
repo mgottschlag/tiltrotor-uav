@@ -33,10 +33,8 @@ debug = 2
 
 [features]
 default = ["battery-monitor", "display", "radio", "sd-trace"]
-#default = ["radio"]
 
 blackpill        = [ "embassy-stm32/stm32f411ce" ] # Compile for a blackpill-based prototype (STM32F4).
-flightcontroller = [ "embassy-stm32/stm32f429zi" ] # Compile for the flightcontroller
 
 battery-monitor = []
 display = []

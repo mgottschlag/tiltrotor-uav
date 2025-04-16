@@ -12,9 +12,6 @@ rustflags = [
 DEFMT_LOG = "debug"
 
 [alias]
-build-blackpill         = "build  --features=blackpill        --release --target=thumbv7em-none-eabihf "
-build-flightcontroller  = "build  --features=flightcontroller --release --target=thumbv7em-none-eabihf"
-run-blackpill           = "run    --features=blackpill        --release --target=thumbv7em-none-eabihf"
-run-flightcontroller    = "run    --features=flightcontroller --release --target=thumbv7em-none-eabihf"
-clippy-blacklpill       = "clippy --features=blackpill"
-clippy-flightcontroller = "clippy --features=flightcontroller"
+build-blackpill    = "build  --features=blackpill --release --target=thumbv7em-none-eabihf"
+run-blackpill      = "run    --features=blackpill --release --target=thumbv7em-none-eabihf"
+clippy-blacklpill  = "clippy --features=blackpill"

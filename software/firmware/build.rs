@@ -3,13 +3,11 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-#[cfg(not(any(feature = "blackpill", feature = "flightcontroller",)))]
+#[cfg(not(any(feature = "blackpill")))]
 compile_error!("No hardware platform selected.");
 
 #[cfg(feature = "blackpill")]
 const MEMORY: &[u8] = include_bytes!("linker/memory-stm32f411.x");
-#[cfg(feature = "flightcontroller")]
-const MEMORY: &[u8] = include_bytes!("linker/memory-stm32g491.x");
 
 fn main() {
     // Put `memory.x` in our output directory and ensure it's
