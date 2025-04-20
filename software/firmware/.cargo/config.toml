@@ -1,5 +1,5 @@
 [target.thumbv7em-none-eabihf]
-runner = "probe-rs run --chip STM32F411CEUx"
+runner = "probe-rs run --chip STM32F405RGTx"
 
 rustflags = [
   "-C", "linker=flip-link",
@@ -12,6 +12,6 @@ rustflags = [
 DEFMT_LOG = "debug"
 
 [alias]
-build-blackpill    = "build  --features=blackpill --release --target=thumbv7em-none-eabihf"
-run-blackpill      = "run    --features=blackpill --release --target=thumbv7em-none-eabihf"
-clippy-blacklpill  = "clippy --features=blackpill"
+build-flightcontroller  = "build  --features=flightcontroller --release --target=thumbv7em-none-eabihf"
+run-flightcontroller    = "run    --features=flightcontroller --release --target=thumbv7em-none-eabihf"
+clippy-flightcontroller = "clippy --features=flightcontroller"

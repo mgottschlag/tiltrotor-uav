@@ -834,6 +834,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "prototype_car"
+version = "0.1.0"
+dependencies = [
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt",
+ "defmt-rtt",
+ "display-interface",
+ "dummy-pin",
+ "embassy-embedded-hal",
+ "embassy-executor",
+ "embassy-stm32",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-graphics",
+ "embedded-sdmmc",
+ "heapless 0.8.0",
+ "libm",
+ "motor",
+ "panic-probe",
+ "sbus-rs",
+ "ssd1306",
+ "thiserror-no-std",
+]
+
+[[package]]
 name = "pulldown-cmark"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

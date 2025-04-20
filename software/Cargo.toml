@@ -2,6 +2,7 @@
 members = [
     "firmware",
     "motor",
+    "prototype_car",
 ]
 resolver = "2"
 
