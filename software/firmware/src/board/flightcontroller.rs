@@ -59,6 +59,7 @@ pub struct Board<M: motor::Type> {
 
 impl<M: motor::Type> Board<M> {
     pub fn init(_motor_driver: M) -> Board<M> {
+        let _p = embassy_stm32::init(Default::default());
         Board {
             phantom: PhantomData,
         }
