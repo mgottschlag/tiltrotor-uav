@@ -10,13 +10,15 @@ use embassy_stm32::adc::VrefInt;
 use embassy_stm32::gpio::{Level, Output, OutputType, Speed};
 use embassy_stm32::i2c::I2c;
 use embassy_stm32::mode::Async;
-use embassy_stm32::peripherals::{ADC1, PA0, PA1, PA2, PA3, PA4, PB3, PB4, PB5, PB8, PB9, TIM5};
+use embassy_stm32::peripherals::{ADC1, PA0, PA1, PA10, PA4, PA9, PB3, PB4, PB5, PB8, PB9, TIM5};
 use embassy_stm32::spi::Config as SpiConfig;
 use embassy_stm32::spi::Spi;
 use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
 use embassy_stm32::usart;
 use embassy_stm32::usart::Config;
+use embassy_stm32::usart::HalfDuplexConfig;
+use embassy_stm32::usart::HalfDuplexReadback;
 use embassy_stm32::usart::Parity;
 use embassy_stm32::usart::StopBits;
 use embassy_stm32::usart::Uart;
@@ -27,8 +29,8 @@ use motor::Command;
 
 type PwmC1 = PA0;
 type PwmC2 = PA1;
-type RadioRx = PA3;
-type RadioTx = PA2;
+type RadioRx = PA10;
+type RadioTx = PA9;
 type StorageSck = PB3;
 type StorageMiso = PB4;
 type StorageMosi = PB5;
@@ -43,25 +45,47 @@ type EngineInt3 = Output<'static>; // PC14
 type EngineInt4 = Output<'static>; // PC15
 
 pub type DisplayI2c = I2c<'static, Async>;
-pub type RadioUart = Uart<'static, Async>; // USART2
+pub type RadioUart = Uart<'static, Async>; // USART1
 pub type StorageCs = Output<'static>;
 pub type StorageSpi = Spi<'static, Async>; // SPI3
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
     I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
-    USART2 => usart::InterruptHandler<peripherals::USART2>;
+    USART1 => usart::InterruptHandler<peripherals::USART1>;
 });
 
 pub struct Board<M: motor::Type> {
     phantom: PhantomData<M>,
+    pub radio_uart: RadioUart,
 }
 
 impl<M: motor::Type> Board<M> {
     pub fn init(_motor_driver: M) -> Board<M> {
-        let _p = embassy_stm32::init(Default::default());
+        let p = embassy_stm32::init(Default::default());
+
+        // init radio
+        let mut radio_uart_config = Config::default();
+        radio_uart_config.baudrate = 100000;
+        radio_uart_config.parity = Parity::ParityEven;
+        radio_uart_config.stop_bits = StopBits::STOP2;
+        let _radio_rx: RadioRx = p.PA10;
+        let radio_tx: RadioTx = p.PA9;
+        let radio_uart = Uart::new_half_duplex(
+            p.USART1,
+            radio_tx,
+            Irqs,
+            p.DMA2_CH7,
+            p.DMA2_CH2,
+            radio_uart_config,
+            HalfDuplexReadback::Readback,
+            HalfDuplexConfig::OpenDrainInternal,
+        )
+        .unwrap();
+
         Board {
             phantom: PhantomData,
+            radio_uart: radio_uart,
         }
     }
 }
