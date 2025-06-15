@@ -20,7 +20,9 @@ dummy-pin = "1.0.0"
 embedded-graphics = "0.8.1"
 embedded-sdmmc = { version = "0.7.0", features = ["defmt-log"], default-features = false }
 heapless = { version = "0.8.0", features = ["defmt-03"] }
+icm20689 = "0.1.1"
 libm = "0.2.8"
+mpu9250 = "0.25.0"
 panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 sbus-rs = { version = "0.1.2", features = ["async"] }
 ssd1306 = "0.10.0"

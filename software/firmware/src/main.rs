@@ -2,32 +2,49 @@
 #![no_std]
 
 use defmt::{error, info};
+use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_time::Timer;
 use motor::Command;
-use {defmt_rtt as _, panic_probe as _};
+use panic_probe as _;
 
 mod board;
+mod imu;
 mod radio;
 
 use board::Board;
+use imu::Driver;
+use imu::Imu;
 use radio::Radio;
 
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) {
+async fn main(spawner: Spawner) {
     info!("Starting ...");
     let board = Board::init(motor::car::Car::new());
 
     info!("Setting up radio ...");
     let radio = Radio::init(board.radio_uart);
+    if let Err(e) = spawner.spawn(poll_radio(radio)) {
+        error!("Failed to spawn radio task: {}", e);
+        panic!()
+    }
     info!("Done setting up radio");
-    poll_radio(radio).await;
+
+    info!("Setting up IMU ...");
+    let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
+    let mut imu = Imu::init(imu_driver);
 
     loop {
-        Timer::after_secs(1).await;
+        let rotation = imu.get_rotations();
+        info!(
+            "P: {} | R: {} | Y: {}",
+            rotation.pitch, rotation.roll, rotation.yaw
+        );
+        Timer::after_millis(100).await;
     }
 }
 
+#[embassy_executor::task]
 pub async fn poll_radio(mut radio: Radio) {
     info!("Polling from radio ...");
     let mut last_cmd = Command::new();

@@ -3,18 +3,16 @@ use core::marker::PhantomData;
 use super::Direction;
 use super::EnginePwm;
 
-use cortex_m::prelude::_embedded_hal_blocking_delay_DelayUs;
 use defmt::info;
-use embassy_stm32::adc::Adc;
-use embassy_stm32::adc::VrefInt;
-use embassy_stm32::gpio::{Level, Output, OutputType, Speed};
-use embassy_stm32::i2c::I2c;
+use embassy_stm32::gpio::Level;
+use embassy_stm32::gpio::Output;
+use embassy_stm32::gpio::Speed;
 use embassy_stm32::mode::Async;
-use embassy_stm32::peripherals::{ADC1, PA0, PA1, PA10, PA4, PA9, PB3, PB4, PB5, PB8, PB9, TIM5};
+use embassy_stm32::peripherals::{PA0, PA1, PA10, PA5, PA6, PA7, PA9, TIM5};
 use embassy_stm32::spi::Config as SpiConfig;
 use embassy_stm32::spi::Spi;
 use embassy_stm32::time::hz;
-use embassy_stm32::timer::simple_pwm::{PwmPin, SimplePwm};
+use embassy_stm32::timer::simple_pwm::SimplePwm;
 use embassy_stm32::usart;
 use embassy_stm32::usart::Config;
 use embassy_stm32::usart::HalfDuplexConfig;
@@ -23,31 +21,25 @@ use embassy_stm32::usart::Parity;
 use embassy_stm32::usart::StopBits;
 use embassy_stm32::usart::Uart;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
-use embassy_time::Delay;
 use libm::fabs;
 use motor::Command;
 
+// see https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config for pin map
 type PwmC1 = PA0;
 type PwmC2 = PA1;
 type RadioRx = PA10;
 type RadioTx = PA9;
-type StorageSck = PB3;
-type StorageMiso = PB4;
-type StorageMosi = PB5;
-type DisplaySck = PB8;
-type DisplaySda = PB9;
-// type ImuSck = PB13;
-// type ImuMiso = PB14;
-// type ImuMosi = PB15;
+type ImuSck = PA5;
+type ImuMiso = PA6;
+type ImuMosi = PA7;
 type EngineInt1 = Output<'static>; // PB2
 type EngineInt2 = Output<'static>; // PC13
 type EngineInt3 = Output<'static>; // PC14
 type EngineInt4 = Output<'static>; // PC15
 
-pub type DisplayI2c = I2c<'static, Async>;
+pub type ImuSpi = Spi<'static, Async>; // SPI1
+pub type ImuCs = Output<'static>; // PA4
 pub type RadioUart = Uart<'static, Async>; // USART1
-pub type StorageCs = Output<'static>;
-pub type StorageSpi = Spi<'static, Async>; // SPI3
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
@@ -58,6 +50,8 @@ bind_interrupts!(struct Irqs {
 pub struct Board<M: motor::Type> {
     phantom: PhantomData<M>,
     pub radio_uart: RadioUart,
+    pub imu_spi: ImuSpi,
+    pub imu_cs: ImuCs,
 }
 
 impl<M: motor::Type> Board<M> {
@@ -83,9 +77,28 @@ impl<M: motor::Type> Board<M> {
         )
         .unwrap();
 
+        // init imu
+        let imu_cs = Output::new(p.PA4, Level::High, Speed::VeryHigh);
+        let imu_sck: ImuSck = p.PA5;
+        let imu_miso: ImuMiso = p.PA6;
+        let imu_mosi: ImuMosi = p.PA7;
+        let mut imu_spi_config = SpiConfig::default();
+        imu_spi_config.frequency = hz(1_000_000);
+        let imu_spi = Spi::new(
+            p.SPI1,
+            imu_sck,
+            imu_mosi,
+            imu_miso,
+            p.DMA2_CH3,
+            p.DMA2_CH0,
+            imu_spi_config,
+        );
+
         Board {
             phantom: PhantomData,
-            radio_uart: radio_uart,
+            radio_uart,
+            imu_spi,
+            imu_cs,
         }
     }
 }
@@ -211,23 +224,5 @@ impl<M: motor::Type> EnginePwm for BlackpillEnginePwm<M> {
         }
 
         self.set_duty([duty_left, duty_right]);
-    }
-}
-
-pub struct BatteryMonitor {
-    adc: Adc<'static, ADC1>,
-    pin: PA4,
-}
-
-impl BatteryMonitor {
-    pub fn init(adc: Adc<'static, ADC1>, mut delay: Delay, pin: PA4) -> Self {
-        adc.enable_vrefint();
-        delay.delay_us(VrefInt::start_time_us());
-        Self { adc, pin }
-    }
-
-    pub fn read(&mut self) -> f32 {
-        let v = self.adc.blocking_read(&mut self.pin) as f32;
-        v * 996.0 / 274.4 / 1000.0
     }
 }

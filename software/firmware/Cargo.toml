@@ -16,7 +16,9 @@ dummy-pin = { workspace = true }
 embedded-graphics = { workspace = true }
 embedded-sdmmc = { workspace = true }
 heapless = { workspace = true }
+icm20689 = { workspace = true }
 libm = { workspace = true }
+mpu9250 = { workspace = true }
 panic-probe = { workspace = true }
 sbus-rs = { workspace = true }
 ssd1306 = { workspace = true }
