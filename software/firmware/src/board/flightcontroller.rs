@@ -15,11 +15,11 @@ use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::SimplePwm;
 use embassy_stm32::usart;
 use embassy_stm32::usart::Config;
-use embassy_stm32::usart::HalfDuplexConfig;
 use embassy_stm32::usart::HalfDuplexReadback;
 use embassy_stm32::usart::Parity;
 use embassy_stm32::usart::StopBits;
 use embassy_stm32::usart::Uart;
+use embassy_stm32::Peri;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use libm::fabs;
 use motor::Command;
@@ -27,11 +27,11 @@ use motor::Command;
 // see https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config for pin map
 type PwmC1 = PA0;
 type PwmC2 = PA1;
-type RadioRx = PA10;
-type RadioTx = PA9;
-type ImuSck = PA5;
-type ImuMiso = PA6;
-type ImuMosi = PA7;
+type RadioRx = Peri<'static, PA10>;
+type RadioTx = Peri<'static, PA9>;
+type ImuSck = Peri<'static, PA5>;
+type ImuMiso = Peri<'static, PA6>;
+type ImuMosi = Peri<'static, PA7>;
 type EngineInt1 = Output<'static>; // PB2
 type EngineInt2 = Output<'static>; // PC13
 type EngineInt3 = Output<'static>; // PC14
@@ -73,7 +73,6 @@ impl<M: motor::Type> Board<M> {
             p.DMA2_CH2,
             radio_uart_config,
             HalfDuplexReadback::Readback,
-            HalfDuplexConfig::OpenDrainInternal,
         )
         .unwrap();
 
