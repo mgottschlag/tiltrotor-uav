@@ -7,6 +7,7 @@ use embassy_executor::Spawner;
 use embassy_time::Timer;
 use motor::Command;
 use panic_probe as _;
+use stabilization::Kf;
 
 mod board;
 mod imu;
@@ -33,14 +34,15 @@ async fn main(spawner: Spawner) {
     info!("Setting up IMU ...");
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
     let mut imu = Imu::init(imu_driver);
+    let mut kf = Kf::new();
+    info!("Done setting up IMU");
 
     loop {
-        let rotation = imu.get_rotations();
-        info!(
-            "P: {} | R: {} | Y: {}",
-            rotation.pitch, rotation.roll, rotation.yaw
-        );
-        Timer::after_millis(100).await;
+        let (gyro, accel) = imu.get_rotations();
+        let thrust = kf.update(gyro, accel);
+        info!("thrust={}", thrust);
+
+        Timer::after_millis(2).await;
     }
 }
 

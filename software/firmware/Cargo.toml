@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 motor = { path = "../motor" }
+stabilization = { path = "../stabilization" }
 
 cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }

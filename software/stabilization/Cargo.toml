@@ -1,0 +1,11 @@
+[package]
+name = "stabilization"
+version = "0.1.0"
+authors = ["Maximilian Hess <mail@ne0h.de>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fusion-ahrs = { workspace = true }
+nalgebra = { workspace = true }
