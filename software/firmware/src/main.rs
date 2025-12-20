@@ -1,9 +1,12 @@
 #![no_main]
 #![no_std]
 
-use defmt::{error, info};
+use defmt::{error, info, warn};
 use defmt_rtt as _;
 use embassy_executor::Spawner;
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_sync::channel::Channel;
+use embassy_sync::channel::Sender;
 use embassy_time::Timer;
 use panic_probe as _;
 use stabilization::Kf;
@@ -14,11 +17,13 @@ mod radio;
 
 use board::Board;
 use board::Command;
-use board::UsbClass;
 use board::UsbDevice;
+use board::UsbReceiver;
 use imu::Driver;
 use imu::Imu;
 use radio::Radio;
+
+static CMD_CHANNEL: Channel<ThreadModeRawMutex, Command, 16> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -26,11 +31,12 @@ async fn main(spawner: Spawner) {
     let board = Board::init();
 
     info!("Setting up usb ...");
+    let (_usb_sender, usb_receiver) = board.usb_class.split();
     if let Err(e) = spawner.spawn(run_usb(board.usb_device)) {
         error!("Failed to spawn usb run task: {}", e);
         panic!()
     }
-    if let Err(e) = spawner.spawn(poll_usb(board.usb_class)) {
+    if let Err(e) = spawner.spawn(poll_usb(usb_receiver)) {
         error!("Failed to spawn usb poll task: {}", e);
         panic!()
     }
@@ -51,11 +57,13 @@ async fn main(spawner: Spawner) {
     info!("Done setting up IMU");
 
     loop {
-        let (gyro, accel) = imu.get_rotations();
-        let thrust = kf.update(gyro, accel);
+        let cmd = CMD_CHANNEL.receive().await;
+        info!("Command: {}", cmd);
+        /*let (gyro, accel) = imu.get_rotations();
+        let _thrust = kf.update(gyro, accel);
         //info!("thrust={}", thrust);
 
-        Timer::after_millis(100).await;
+        Timer::after_millis(2).await;*/
     }
 }
 
@@ -81,6 +89,7 @@ async fn poll_radio(mut radio: Radio) {
             continue;
         }
         info!("Got command: {}", cmd);
+        CMD_CHANNEL.send(cmd.clone()).await;
         last_cmd = cmd;
     }
 }
@@ -92,15 +101,23 @@ async fn run_usb(mut usb_device: UsbDevice) {
 }
 
 #[embassy_executor::task]
-async fn poll_usb(mut usb_class: UsbClass) {
+async fn poll_usb(mut usb_class: UsbReceiver) {
     info!("Waiting for usb connection ...");
     usb_class.wait_connection().await;
     info!("Usb connected");
     let mut buf = [0; 64];
     loop {
         let n = usb_class.read_packet(&mut buf).await.unwrap();
-        let data = &buf[..n];
-        info!("data: {:x}", data);
-        usb_class.write_packet(data).await.unwrap();
+        if n < 4 {
+            warn!("Only got {} bytes via usb: {}", n, &buf[..n]);
+            continue;
+        }
+        let cmd = Command::MotorDebug {
+            m1: (f32::from(buf[0]) / 255.0).max(0.0).min(1.0),
+            m2: (f32::from(buf[1]) / 255.0).max(0.0).min(1.0),
+            m3: (f32::from(buf[2]) / 255.0).max(0.0).min(1.0),
+            m4: (f32::from(buf[3]) / 255.0).max(0.0).min(1.0),
+        };
+        CMD_CHANNEL.send(cmd).await;
     }
 }

@@ -46,6 +46,8 @@ pub type ImuCs = Output<'static>; // PA4
 pub type RadioUart = Uart<'static, Async>; // USART1
 pub type UsbClass = CdcAcmClass<'static, usb::Driver<'static, USB_OTG_FS>>;
 pub type UsbDevice = embassy_usb::UsbDevice<'static, usb::Driver<'static, USB_OTG_FS>>;
+pub type UsbReceiver =
+    embassy_usb::class::cdc_acm::Receiver<'static, usb::Driver<'static, USB_OTG_FS>>;
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
