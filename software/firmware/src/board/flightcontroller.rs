@@ -1,3 +1,4 @@
+use super::Command;
 use super::EnginePwm;
 
 use defmt::info;
@@ -25,7 +26,6 @@ use embassy_usb::Builder;
 use embassy_usb::class::cdc_acm::CdcAcmClass;
 use embassy_usb::class::cdc_acm::State;
 use libm::fabs;
-use motor::Command;
 use static_cell::StaticCell;
 
 // see https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config for pin map

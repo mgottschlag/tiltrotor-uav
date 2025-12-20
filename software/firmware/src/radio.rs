@@ -1,7 +1,6 @@
 use sbus_rs::channels_parsing;
 
-use motor::Command;
-
+use crate::board::Command;
 use crate::board::RadioUart;
 
 const SCALE_MIN: u16 = 240;

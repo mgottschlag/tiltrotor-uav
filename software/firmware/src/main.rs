@@ -5,7 +5,6 @@ use defmt::{error, info};
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_time::Timer;
-use motor::Command;
 use panic_probe as _;
 use stabilization::Kf;
 
@@ -14,6 +13,7 @@ mod imu;
 mod radio;
 
 use board::Board;
+use board::Command;
 use board::UsbClass;
 use board::UsbDevice;
 use imu::Driver;
