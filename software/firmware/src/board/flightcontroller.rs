@@ -8,21 +8,28 @@ use embassy_stm32::gpio::Level;
 use embassy_stm32::gpio::Output;
 use embassy_stm32::gpio::Speed;
 use embassy_stm32::mode::Async;
+use embassy_stm32::peripherals::USB_OTG_FS;
 use embassy_stm32::peripherals::{PA0, PA1, PA10, PA5, PA6, PA7, PA9, TIM5};
 use embassy_stm32::spi::Config as SpiConfig;
 use embassy_stm32::spi::Spi;
 use embassy_stm32::time::hz;
+use embassy_stm32::time::Hertz;
 use embassy_stm32::timer::simple_pwm::SimplePwm;
 use embassy_stm32::usart;
-use embassy_stm32::usart::Config;
+use embassy_stm32::usart::Config as UsartConfig;
 use embassy_stm32::usart::HalfDuplexReadback;
 use embassy_stm32::usart::Parity;
 use embassy_stm32::usart::StopBits;
 use embassy_stm32::usart::Uart;
+use embassy_stm32::usb;
 use embassy_stm32::Peri;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
+use embassy_usb::class::cdc_acm::CdcAcmClass;
+use embassy_usb::class::cdc_acm::State;
+use embassy_usb::Builder;
 use libm::fabs;
 use motor::Command;
+use static_cell::StaticCell;
 
 // see https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config for pin map
 type PwmC1 = PA0;
@@ -40,26 +47,86 @@ type EngineInt4 = Output<'static>; // PC15
 pub type ImuSpi = Spi<'static, Async>; // SPI1
 pub type ImuCs = Output<'static>; // PA4
 pub type RadioUart = Uart<'static, Async>; // USART1
+pub type UsbClass = CdcAcmClass<'static, usb::Driver<'static, USB_OTG_FS>>;
+pub type UsbDevice = embassy_usb::UsbDevice<'static, usb::Driver<'static, USB_OTG_FS>>;
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
     I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
+    OTG_FS => usb::InterruptHandler<peripherals::USB_OTG_FS>;
     USART1 => usart::InterruptHandler<peripherals::USART1>;
 });
+
+static EP_OUT_BUFFER: StaticCell<[u8; 256]> = StaticCell::new();
+static CONFIG_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
+static BOS_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
+static CONTROL_BUF: StaticCell<[u8; 64]> = StaticCell::new();
+static STATE: StaticCell<State> = StaticCell::new();
 
 pub struct Board<M: motor::Type> {
     phantom: PhantomData<M>,
     pub radio_uart: RadioUart,
     pub imu_spi: ImuSpi,
     pub imu_cs: ImuCs,
+    pub usb_class: UsbClass,
+    pub usb_device: UsbDevice,
 }
 
 impl<M: motor::Type> Board<M> {
     pub fn init(_motor_driver: M) -> Board<M> {
-        let p = embassy_stm32::init(Default::default());
+        let mut config = embassy_stm32::Config::default();
+        {
+            use embassy_stm32::rcc::*;
+            config.rcc.hse = Some(Hse {
+                freq: Hertz(8_000_000),
+                mode: HseMode::Oscillator,
+            });
+            config.rcc.pll_src = PllSource::HSE;
+            config.rcc.pll = Some(Pll {
+                prediv: PllPreDiv::DIV8,
+                mul: PllMul::MUL336,
+                divp: Some(PllPDiv::DIV2), // 8mhz / 4 * 168 / 2 = 168Mhz.
+                divq: Some(PllQDiv::DIV7), // 8mhz / 4 * 168 / 7 = 48Mhz.
+                divr: None,
+            });
+            config.rcc.ahb_pre = AHBPrescaler::DIV1;
+            config.rcc.apb1_pre = APBPrescaler::DIV4;
+            config.rcc.apb2_pre = APBPrescaler::DIV2;
+            config.rcc.sys = Sysclk::PLL1_P;
+            config.rcc.mux.clk48sel = mux::Clk48sel::PLL1_Q;
+        }
+        let p = embassy_stm32::init(config);
+
+        // init usb connection
+        let ep_out_buffer = EP_OUT_BUFFER.init([0; 256]);
+        let config_descriptor = CONFIG_DESCRIPTOR.init([0; 256]);
+        let bos_descriptor = BOS_DESCRIPTOR.init([0; 256]);
+        let control_buf = CONTROL_BUF.init([0; 64]);
+        let state = STATE.init(State::new());
+
+        let mut config = usb::Config::default();
+        config.vbus_detection = false;
+        let driver = usb::Driver::new_fs(p.USB_OTG_FS, Irqs, p.PA12, p.PA11, ep_out_buffer, config);
+
+        let mut config = embassy_usb::Config::new(0xdead, 0xcafe);
+        config.manufacturer = Some("tilt-rotor");
+        config.product = Some("uav");
+        config.serial_number = Some("42");
+
+        let mut usb_builder = Builder::new(
+            driver,
+            config,
+            config_descriptor,
+            bos_descriptor,
+            &mut [],
+            control_buf,
+        );
+
+        let usb_class = CdcAcmClass::new(&mut usb_builder, state, 64);
+        let usb_device = usb_builder.build();
 
         // init radio
-        let mut radio_uart_config = Config::default();
+        let mut radio_uart_config = UsartConfig::default();
         radio_uart_config.baudrate = 100000;
         radio_uart_config.parity = Parity::ParityEven;
         radio_uart_config.stop_bits = StopBits::STOP2;
@@ -98,6 +165,8 @@ impl<M: motor::Type> Board<M> {
             radio_uart,
             imu_spi,
             imu_cs,
+            usb_class,
+            usb_device,
         }
     }
 }

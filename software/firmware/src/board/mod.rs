@@ -10,7 +10,3 @@ mod flightcontroller;
 pub trait EnginePwm {
     fn update(&mut self, cmd: &Command);
 }
-
-/*pub trait PidTimer {
-    fn elapsed_secs(&mut self) -> f32;
-}*/

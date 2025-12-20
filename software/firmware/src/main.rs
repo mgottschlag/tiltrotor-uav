@@ -14,6 +14,8 @@ mod imu;
 mod radio;
 
 use board::Board;
+use board::UsbClass;
+use board::UsbDevice;
 use imu::Driver;
 use imu::Imu;
 use radio::Radio;
@@ -22,6 +24,17 @@ use radio::Radio;
 async fn main(spawner: Spawner) {
     info!("Starting ...");
     let board = Board::init(motor::car::Car::new());
+
+    info!("Setting up usb ...");
+    if let Err(e) = spawner.spawn(run_usb(board.usb_device)) {
+        error!("Failed to spawn usb run task: {}", e);
+        panic!()
+    }
+    if let Err(e) = spawner.spawn(poll_usb(board.usb_class)) {
+        error!("Failed to spawn usb poll task: {}", e);
+        panic!()
+    }
+    info!("Done setting up usb");
 
     info!("Setting up radio ...");
     let radio = Radio::init(board.radio_uart);
@@ -40,14 +53,14 @@ async fn main(spawner: Spawner) {
     loop {
         let (gyro, accel) = imu.get_rotations();
         let thrust = kf.update(gyro, accel);
-        info!("thrust={}", thrust);
+        //info!("thrust={}", thrust);
 
-        Timer::after_millis(2).await;
+        Timer::after_millis(100).await;
     }
 }
 
 #[embassy_executor::task]
-pub async fn poll_radio(mut radio: Radio) {
+async fn poll_radio(mut radio: Radio) {
     info!("Polling from radio ...");
     let mut last_cmd = Command::new();
     loop {
@@ -64,5 +77,25 @@ pub async fn poll_radio(mut radio: Radio) {
         }
         info!("Got command: {}", cmd);
         last_cmd = cmd;
+    }
+}
+
+#[embassy_executor::task]
+async fn run_usb(mut usb_device: UsbDevice) {
+    info!("Running usb device ...");
+    usb_device.run().await;
+}
+
+#[embassy_executor::task]
+async fn poll_usb(mut usb_class: UsbClass) {
+    info!("Waiting for usb connection ...");
+    usb_class.wait_connection().await;
+    info!("Usb connected");
+    let mut buf = [0; 64];
+    loop {
+        let n = usb_class.read_packet(&mut buf).await.unwrap();
+        let data = &buf[..n];
+        info!("data: {:x}", data);
+        usb_class.write_packet(data).await.unwrap();
     }
 }
