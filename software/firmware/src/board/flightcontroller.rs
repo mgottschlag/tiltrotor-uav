@@ -1,19 +1,17 @@
-use core::marker::PhantomData;
-
-use super::Direction;
 use super::EnginePwm;
 
 use defmt::info;
+use embassy_stm32::Peri;
 use embassy_stm32::gpio::Level;
 use embassy_stm32::gpio::Output;
 use embassy_stm32::gpio::Speed;
 use embassy_stm32::mode::Async;
 use embassy_stm32::peripherals::USB_OTG_FS;
-use embassy_stm32::peripherals::{PA0, PA1, PA10, PA5, PA6, PA7, PA9, TIM5};
+use embassy_stm32::peripherals::{PA0, PA1, PA5, PA6, PA7, PA9, PA10, TIM5};
 use embassy_stm32::spi::Config as SpiConfig;
 use embassy_stm32::spi::Spi;
-use embassy_stm32::time::hz;
 use embassy_stm32::time::Hertz;
+use embassy_stm32::time::hz;
 use embassy_stm32::timer::simple_pwm::SimplePwm;
 use embassy_stm32::usart;
 use embassy_stm32::usart::Config as UsartConfig;
@@ -22,11 +20,10 @@ use embassy_stm32::usart::Parity;
 use embassy_stm32::usart::StopBits;
 use embassy_stm32::usart::Uart;
 use embassy_stm32::usb;
-use embassy_stm32::Peri;
 use embassy_stm32::{bind_interrupts, i2c, peripherals};
+use embassy_usb::Builder;
 use embassy_usb::class::cdc_acm::CdcAcmClass;
 use embassy_usb::class::cdc_acm::State;
-use embassy_usb::Builder;
 use libm::fabs;
 use motor::Command;
 use static_cell::StaticCell;
@@ -63,8 +60,7 @@ static BOS_DESCRIPTOR: StaticCell<[u8; 256]> = StaticCell::new();
 static CONTROL_BUF: StaticCell<[u8; 64]> = StaticCell::new();
 static STATE: StaticCell<State> = StaticCell::new();
 
-pub struct Board<M: motor::Type> {
-    phantom: PhantomData<M>,
+pub struct Board {
     pub radio_uart: RadioUart,
     pub imu_spi: ImuSpi,
     pub imu_cs: ImuCs,
@@ -72,8 +68,8 @@ pub struct Board<M: motor::Type> {
     pub usb_device: UsbDevice,
 }
 
-impl<M: motor::Type> Board<M> {
-    pub fn init(_motor_driver: M) -> Board<M> {
+impl Board {
+    pub fn init() -> Board {
         let mut config = embassy_stm32::Config::default();
         {
             use embassy_stm32::rcc::*;
@@ -161,7 +157,6 @@ impl<M: motor::Type> Board<M> {
         );
 
         Board {
-            phantom: PhantomData,
             radio_uart,
             imu_spi,
             imu_cs,
@@ -171,29 +166,20 @@ impl<M: motor::Type> Board<M> {
     }
 }
 
-pub type EnginePwmType<M> = BlackpillEnginePwm<M>;
+pub type EnginePwmType = BlackpillEnginePwm;
 
 const MINIMAL_DUTY: u16 = 150;
 
-pub struct BlackpillEnginePwm<M>
-where
-    M: motor::Type,
-{
-    motor_driver: M,
+pub struct BlackpillEnginePwm {
     pwm: SimplePwm<'static, TIM5>,
     int1: EngineInt1,
     int2: EngineInt2,
     int3: EngineInt3,
     int4: EngineInt4,
-    last: [Direction; 4],
 }
 
-impl<M> BlackpillEnginePwm<M>
-where
-    M: motor::Type,
-{
+impl BlackpillEnginePwm {
     pub fn init(
-        motor_driver: M,
         mut pwm: SimplePwm<'static, TIM5>,
         int1: EngineInt1,
         int2: EngineInt2,
@@ -205,13 +191,11 @@ where
         pwm.ch1().enable();
         pwm.ch2().enable();
         BlackpillEnginePwm {
-            motor_driver,
             pwm,
             int1,
             int2,
             int3,
             int4,
-            last: [Direction::Stop; 4],
         }
     }
 
@@ -243,54 +227,6 @@ where
     }
 }
 
-impl<M: motor::Type> EnginePwm for BlackpillEnginePwm<M> {
-    fn update(&mut self, cmd: &Command) {
-        let directions = self.motor_driver.update(cmd);
-        match directions == self.last {
-            true => return,
-            false => self.last = directions,
-        }
-        info!(
-            "motor_left={:?}, motor_right={:?}",
-            directions[0], directions[1]
-        );
-
-        let mut duty_left = 0.0;
-        let mut duty_right = 0.0;
-
-        match directions[0] {
-            Direction::Forward(duty) => {
-                self.int1.set_high();
-                self.int2.set_low();
-                duty_left = duty;
-            }
-            Direction::Backward(duty) => {
-                self.int1.set_low();
-                self.int2.set_high();
-                duty_left = duty;
-            }
-            Direction::Stop => {
-                self.int1.set_low();
-                self.int2.set_low();
-            }
-        }
-        match directions[1] {
-            Direction::Forward(duty) => {
-                self.int3.set_low();
-                self.int4.set_high();
-                duty_right = duty;
-            }
-            Direction::Backward(duty) => {
-                self.int3.set_high();
-                self.int4.set_low();
-                duty_right = duty;
-            }
-            Direction::Stop => {
-                self.int3.set_low();
-                self.int4.set_low();
-            }
-        }
-
-        self.set_duty([duty_left, duty_right]);
-    }
+impl EnginePwm for BlackpillEnginePwm {
+    fn update(&mut self, _cmd: &Command) {}
 }

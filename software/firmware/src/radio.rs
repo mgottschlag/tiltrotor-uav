@@ -41,7 +41,7 @@ impl Radio {
                 }
             }
 
-            return Ok(Command {
+            return Ok(Command::Remote {
                 roll: scale_principal_axis(channels[0]),
                 pitch: scale_principal_axis(channels[1]),
                 yaw: scale_principal_axis(channels[3]),

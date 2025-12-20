@@ -23,7 +23,7 @@ use radio::Radio;
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Starting ...");
-    let board = Board::init(motor::car::Car::new());
+    let board = Board::init();
 
     info!("Setting up usb ...");
     if let Err(e) = spawner.spawn(run_usb(board.usb_device)) {
@@ -62,7 +62,12 @@ async fn main(spawner: Spawner) {
 #[embassy_executor::task]
 async fn poll_radio(mut radio: Radio) {
     info!("Polling from radio ...");
-    let mut last_cmd = Command::new();
+    let mut last_cmd = Command::Remote {
+        roll: 0.0,
+        pitch: 0.0,
+        yaw: 0.0,
+        thrust: 0.0,
+    };
     loop {
         let cmd = match radio.next().await {
             Ok(data) => data,

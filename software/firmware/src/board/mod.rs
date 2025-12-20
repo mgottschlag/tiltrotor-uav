@@ -1,5 +1,4 @@
 use motor::Command;
-use motor::Direction;
 
 #[cfg(feature = "flightcontroller")]
 pub use flightcontroller::*;
