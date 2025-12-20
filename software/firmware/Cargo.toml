@@ -2,7 +2,7 @@
 name = "firmware"
 version = "0.1.0"
 authors = ["Mathias Gottschlag <mgottschlag@gmail.com>", "Maximilian Hess <mail@ne0h.de>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 motor = { path = "../motor" }
