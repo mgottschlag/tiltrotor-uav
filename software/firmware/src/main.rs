@@ -9,6 +9,7 @@ use embassy_sync::channel::Channel;
 use embassy_sync::channel::Sender;
 use embassy_time::Timer;
 use panic_probe as _;
+use protocol::Message;
 use stabilization::Kf;
 
 mod board;
@@ -16,14 +17,13 @@ mod imu;
 mod radio;
 
 use board::Board;
-use board::Command;
 use board::UsbDevice;
 use board::UsbReceiver;
 use imu::Driver;
 use imu::Imu;
 use radio::Radio;
 
-static CMD_CHANNEL: Channel<ThreadModeRawMutex, Command, 16> = Channel::new();
+static CMD_CHANNEL: Channel<ThreadModeRawMutex, Message, 16> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -70,7 +70,7 @@ async fn main(spawner: Spawner) {
 #[embassy_executor::task]
 async fn poll_radio(mut radio: Radio) {
     info!("Polling from radio ...");
-    let mut last_cmd = Command::Remote {
+    let mut last_cmd = Message::Command {
         roll: 0.0,
         pitch: 0.0,
         yaw: 0.0,
@@ -112,7 +112,7 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
             warn!("Only got {} bytes via usb: {}", n, &buf[..n]);
             continue;
         }
-        let cmd = Command::MotorDebug {
+        let cmd = Message::MotorDebug {
             m1: (f32::from(buf[0]) / 255.0).max(0.0).min(1.0),
             m2: (f32::from(buf[1]) / 255.0).max(0.0).min(1.0),
             m3: (f32::from(buf[2]) / 255.0).max(0.0).min(1.0),

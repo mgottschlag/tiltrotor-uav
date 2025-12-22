@@ -5,6 +5,7 @@ authors = ["Mathias Gottschlag <mgottschlag@gmail.com>", "Maximilian Hess <mail@
 edition = "2024"
 
 [dependencies]
+protocol = { path = "../protocol" }
 stabilization = { path = "../stabilization" }
 
 cortex-m = { workspace = true }

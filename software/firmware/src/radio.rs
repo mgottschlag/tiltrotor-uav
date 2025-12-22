@@ -1,6 +1,6 @@
+use protocol::Message;
 use sbus_rs::channels_parsing;
 
-use crate::board::Command;
 use crate::board::RadioUart;
 
 const SCALE_MIN: u16 = 240;
@@ -16,7 +16,7 @@ impl Radio {
         Self { uart }
     }
 
-    pub async fn next(&mut self) -> Result<Command, embassy_stm32::usart::Error> {
+    pub async fn next(&mut self) -> Result<Message, embassy_stm32::usart::Error> {
         let mut buf = [0u8; 25];
 
         'outer: loop {
@@ -40,7 +40,7 @@ impl Radio {
                 }
             }
 
-            return Ok(Command::Remote {
+            return Ok(Message::Command {
                 roll: scale_principal_axis(channels[0]),
                 pitch: scale_principal_axis(channels[1]),
                 yaw: scale_principal_axis(channels[3]),
