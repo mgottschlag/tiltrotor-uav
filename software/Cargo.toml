@@ -33,6 +33,14 @@ ssd1306 = "0.10.0"
 static_cell = "2"
 thiserror-no-std = "2.0.2"
 
+# remote
+anyhow = "1.0.100"
+clap = { version = "4.5.53", features = ["derive"] }
+env_logger = "0.11.8"
+log = "0.4.29"
+tokio = { version = "1", features = ["full"] }
+tokio-serial = "5.4.5"
+
 [profile]
 [profile.release]
 debug = true

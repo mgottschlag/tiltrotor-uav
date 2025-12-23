@@ -2,7 +2,7 @@
 runner = "probe-rs run --chip STM32F405RGTx"
 
 [env]
-DEFMT_LOG = "debug"
+DEFMT_LOG = "info"
 
 [alias]
 build-flightcontroller  = "build  --features=flightcontroller --release --target=thumbv7em-none-eabihf"

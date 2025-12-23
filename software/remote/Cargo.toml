@@ -1,0 +1,15 @@
+[package]
+name = "remote"
+version = "0.1.0"
+authors = ["Maximilian Hess <mail@ne0h.de>"]
+edition = "2024"
+
+[dependencies]
+protocol = { path = "../protocol" }
+
+anyhow = {workspace = true }
+clap = {workspace = true }
+env_logger = {workspace = true }
+log = {workspace = true }
+tokio = {workspace = true }
+tokio-serial = {workspace = true }

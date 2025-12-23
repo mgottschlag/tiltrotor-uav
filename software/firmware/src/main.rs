@@ -108,16 +108,12 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
     let mut buf = [0; 64];
     loop {
         let n = usb_class.read_packet(&mut buf).await.unwrap();
-        if n < 4 {
-            warn!("Only got {} bytes via usb: {}", n, &buf[..n]);
-            continue;
-        }
-        let cmd = Message::MotorDebug {
-            m1: (f32::from(buf[0]) / 255.0).max(0.0).min(1.0),
-            m2: (f32::from(buf[1]) / 255.0).max(0.0).min(1.0),
-            m3: (f32::from(buf[2]) / 255.0).max(0.0).min(1.0),
-            m4: (f32::from(buf[3]) / 255.0).max(0.0).min(1.0),
+        match protocol::decode(&buf[..n]) {
+            Ok(cmd) => {
+                info!("Got command: {}", cmd);
+                CMD_CHANNEL.send(cmd).await; // TODO: clamp input values
+            }
+            Err(_) => warn!("Failed to decode message"), // TODO: print error
         };
-        CMD_CHANNEL.send(cmd).await;
     }
 }
