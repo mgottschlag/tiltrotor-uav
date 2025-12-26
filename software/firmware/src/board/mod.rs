@@ -4,6 +4,6 @@ pub use flightcontroller::*;
 #[cfg(feature = "flightcontroller")]
 mod flightcontroller;
 
-pub trait EnginePwm {
-    fn update(&mut self, cmd: &protocol::Message);
+pub trait EscDriver {
+    fn update(&mut self, thrust: [f32; 4]);
 }

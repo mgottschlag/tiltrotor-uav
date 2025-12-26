@@ -1,17 +1,18 @@
-use super::EnginePwm;
+use super::EscDriver;
 
-use defmt::info;
 use embassy_stm32::Peri;
 use embassy_stm32::gpio::Level;
 use embassy_stm32::gpio::Output;
+use embassy_stm32::gpio::OutputType;
 use embassy_stm32::gpio::Speed;
 use embassy_stm32::mode::Async;
 use embassy_stm32::peripherals::USB_OTG_FS;
-use embassy_stm32::peripherals::{PA0, PA1, PA5, PA6, PA7, PA9, PA10, TIM5};
+use embassy_stm32::peripherals::{PA5, PA6, PA7, PA9, PA10, TIM3, TIM5};
 use embassy_stm32::spi::Config as SpiConfig;
 use embassy_stm32::spi::Spi;
 use embassy_stm32::time::Hertz;
 use embassy_stm32::time::hz;
+use embassy_stm32::timer::simple_pwm::PwmPin;
 use embassy_stm32::timer::simple_pwm::SimplePwm;
 use embassy_stm32::usart;
 use embassy_stm32::usart::Config as UsartConfig;
@@ -24,22 +25,14 @@ use embassy_stm32::{bind_interrupts, i2c, peripherals};
 use embassy_usb::Builder;
 use embassy_usb::class::cdc_acm::CdcAcmClass;
 use embassy_usb::class::cdc_acm::State;
-use libm::fabs;
-use protocol::Message;
 use static_cell::StaticCell;
 
 // see https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config for pin map
-type PwmC1 = PA0;
-type PwmC2 = PA1;
 type RadioRx = Peri<'static, PA10>;
 type RadioTx = Peri<'static, PA9>;
 type ImuSck = Peri<'static, PA5>;
 type ImuMiso = Peri<'static, PA6>;
 type ImuMosi = Peri<'static, PA7>;
-type EngineInt1 = Output<'static>; // PB2
-type EngineInt2 = Output<'static>; // PC13
-type EngineInt3 = Output<'static>; // PC14
-type EngineInt4 = Output<'static>; // PC15
 
 pub type ImuSpi = Spi<'static, Async>; // SPI1
 pub type ImuCs = Output<'static>; // PA4
@@ -48,6 +41,7 @@ pub type UsbClass = CdcAcmClass<'static, usb::Driver<'static, USB_OTG_FS>>;
 pub type UsbDevice = embassy_usb::UsbDevice<'static, usb::Driver<'static, USB_OTG_FS>>;
 pub type UsbReceiver =
     embassy_usb::class::cdc_acm::Receiver<'static, usb::Driver<'static, USB_OTG_FS>>;
+pub type EscDriverType = BlackpillEscDriver;
 
 bind_interrupts!(struct Irqs {
     I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
@@ -68,6 +62,7 @@ pub struct Board {
     pub imu_cs: ImuCs,
     pub usb_class: UsbClass,
     pub usb_device: UsbDevice,
+    pub _esc_driver: EscDriverType,
 }
 
 impl Board {
@@ -158,50 +153,77 @@ impl Board {
             imu_spi_config,
         );
 
+        // init esc driver
+        let pwm_tim5 = SimplePwm::new(
+            p.TIM5,
+            None,
+            None,
+            Some(PwmPin::new(p.PA2, OutputType::PushPull)),
+            Some(PwmPin::new(p.PA3, OutputType::PushPull)),
+            hz(50),
+            Default::default(),
+        );
+        let pwm_tim3 = SimplePwm::new(
+            p.TIM3,
+            None,
+            None,
+            Some(PwmPin::new(p.PB0, OutputType::PushPull)),
+            Some(PwmPin::new(p.PB1, OutputType::PushPull)),
+            hz(50),
+            Default::default(),
+        );
+        let esc_driver = BlackpillEscDriver::init(pwm_tim5, pwm_tim3);
+
         Board {
             radio_uart,
             imu_spi,
             imu_cs,
             usb_class,
             usb_device,
+            _esc_driver: esc_driver,
         }
     }
 }
 
-pub type EnginePwmType = BlackpillEnginePwm;
-
-const MINIMAL_DUTY: u16 = 150;
-
-pub struct BlackpillEnginePwm {
-    pwm: SimplePwm<'static, TIM5>,
-    int1: EngineInt1,
-    int2: EngineInt2,
-    int3: EngineInt3,
-    int4: EngineInt4,
+pub struct BlackpillEscDriver {
+    _pwm_tim5: SimplePwm<'static, TIM5>,
+    _pwm_tim3: SimplePwm<'static, TIM3>,
 }
 
-impl BlackpillEnginePwm {
+impl BlackpillEscDriver {
+    /// Create the ESC PWM driver for Blackpill.
+    ///
+    /// M1: PB0
+    /// M2: PB1
+    /// M3: PA3 (maybe, according to [1])
+    /// M4: PA2
+    ///
+    /// [1] https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config
     pub fn init(
-        mut pwm: SimplePwm<'static, TIM5>,
-        int1: EngineInt1,
-        int2: EngineInt2,
-        int3: EngineInt3,
-        int4: EngineInt4,
+        mut pwm_tim5: SimplePwm<'static, TIM5>,
+        mut pwm_tim3: SimplePwm<'static, TIM3>,
     ) -> Self {
-        pwm.ch1().set_duty_cycle(0);
-        pwm.ch2().set_duty_cycle(0);
-        pwm.ch1().enable();
-        pwm.ch2().enable();
-        BlackpillEnginePwm {
-            pwm,
-            int1,
-            int2,
-            int3,
-            int4,
+        {
+            let max_duty = pwm_tim5.max_duty_cycle() as f32;
+            pwm_tim5.ch3().set_duty_cycle((0.3 * max_duty) as u16);
+            pwm_tim5.ch4().set_duty_cycle((0.4 * max_duty) as u16);
+            pwm_tim5.ch3().enable();
+            pwm_tim5.ch4().enable();
+        }
+        {
+            let max_duty = pwm_tim3.max_duty_cycle() as f32;
+            pwm_tim3.ch3().set_duty_cycle((0.5 * max_duty) as u16);
+            pwm_tim3.ch4().set_duty_cycle((0.6 * max_duty) as u16);
+            pwm_tim3.ch3().enable();
+            pwm_tim3.ch4().enable();
+        }
+        Self {
+            _pwm_tim5: pwm_tim5,
+            _pwm_tim3: pwm_tim3,
         }
     }
 
-    fn get_max_duty(&self) -> u16 {
+    /*fn get_max_duty(&self) -> u16 {
         self.pwm.max_duty_cycle()
     }
 
@@ -226,9 +248,9 @@ impl BlackpillEnginePwm {
         );
         self.pwm.ch1().set_duty_cycle(scaled_duty[0]);
         self.pwm.ch2().set_duty_cycle(scaled_duty[1]);
-    }
+    }*/
 }
 
-impl EnginePwm for BlackpillEnginePwm {
-    fn update(&mut self, _cmd: &Message) {}
+impl EscDriver for BlackpillEscDriver {
+    fn update(&mut self, _thrust: [f32; 4]) {}
 }

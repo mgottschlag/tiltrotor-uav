@@ -113,7 +113,7 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
                 info!("Got command: {}", cmd);
                 CMD_CHANNEL.send(cmd).await; // TODO: clamp input values
             }
-            Err(_) => warn!("Failed to decode message"), // TODO: print error
+            Err(_) => warn!("Failed to decode message"), // TODO: print actual error
         };
     }
 }
