@@ -1,5 +1,11 @@
 # Flightcontroller
 
+## Setup on Archlinux
+
+```bash
+sudo pacman -S stlink
+```
+
 ## Build and Run
 
 ```bash

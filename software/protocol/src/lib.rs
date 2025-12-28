@@ -11,10 +11,7 @@ pub enum Message {
         thrust: f32, // [ 0.0 .. 1.0]
     },
     MotorDebug {
-        m1: f32, // [0.0 .. 1.0]
-        m2: f32, // [0.0 .. 1.0]
-        m3: f32, // [0.0 .. 1.0]
-        m4: f32, // [0.0 .. 1.0]
+        thrust: [f32; 4], // [0.0 .. 1.0]
     },
 }
 
@@ -47,10 +44,7 @@ mod tests {
     #[test]
     fn encode_decode_motor_debug() {
         let msg = Message::MotorDebug {
-            m1: 0.1,
-            m2: 0.2,
-            m3: 0.3,
-            m4: 0.4,
+            thrust: [0.1, 0.2, 0.3, 0.4],
         };
         let mut buf = [0; 255];
         let data = encode(&msg, &mut buf).unwrap();

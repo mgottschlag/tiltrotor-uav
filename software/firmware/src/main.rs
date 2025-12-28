@@ -23,12 +23,15 @@ use imu::Driver;
 use imu::Imu;
 use radio::Radio;
 
+use crate::board::EscDriver;
+
 static CMD_CHANNEL: Channel<ThreadModeRawMutex, Message, 16> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Starting ...");
-    let board = Board::init();
+    let mut board = Board::init();
+    board.esc_driver.update([0.0; 4]);
 
     info!("Setting up usb ...");
     let (_usb_sender, usb_receiver) = board.usb_class.split();
@@ -52,13 +55,18 @@ async fn main(spawner: Spawner) {
 
     info!("Setting up IMU ...");
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
-    let mut imu = Imu::init(imu_driver);
-    let mut kf = Kf::new();
+    let mut _imu = Imu::init(imu_driver);
+    let mut _kf = Kf::new();
     info!("Done setting up IMU");
 
     loop {
         let cmd = CMD_CHANNEL.receive().await;
         info!("Command: {}", cmd);
+        match cmd {
+            Message::MotorDebug { thrust } => board.esc_driver.update(thrust),
+            _ => {}
+        }
+
         /*let (gyro, accel) = imu.get_rotations();
         let _thrust = kf.update(gyro, accel);
         //info!("thrust={}", thrust);
@@ -111,7 +119,7 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
         match protocol::decode(&buf[..n]) {
             Ok(cmd) => {
                 info!("Got command: {}", cmd);
-                CMD_CHANNEL.send(cmd).await; // TODO: clamp input values
+                CMD_CHANNEL.send(cmd).await;
             }
             Err(_) => warn!("Failed to decode message"), // TODO: print actual error
         };

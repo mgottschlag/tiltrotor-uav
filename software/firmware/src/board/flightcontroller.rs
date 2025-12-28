@@ -62,7 +62,7 @@ pub struct Board {
     pub imu_cs: ImuCs,
     pub usb_class: UsbClass,
     pub usb_device: UsbDevice,
-    pub _esc_driver: EscDriverType,
+    pub esc_driver: EscDriverType,
 }
 
 impl Board {
@@ -102,8 +102,8 @@ impl Board {
         let driver = usb::Driver::new_fs(p.USB_OTG_FS, Irqs, p.PA12, p.PA11, ep_out_buffer, config);
 
         let mut config = embassy_usb::Config::new(0xdead, 0xcafe);
-        config.manufacturer = Some("tilt-rotor");
-        config.product = Some("uav");
+        config.manufacturer = Some("Instinctive Llama Solutions");
+        config.product = Some("UAV");
         config.serial_number = Some("42");
 
         let mut usb_builder = Builder::new(
@@ -180,14 +180,16 @@ impl Board {
             imu_cs,
             usb_class,
             usb_device,
-            _esc_driver: esc_driver,
+            esc_driver,
         }
     }
 }
 
 pub struct BlackpillEscDriver {
-    _pwm_tim5: SimplePwm<'static, TIM5>,
-    _pwm_tim3: SimplePwm<'static, TIM3>,
+    pwm_tim5: SimplePwm<'static, TIM5>,
+    pwm_tim3: SimplePwm<'static, TIM3>,
+    offset_tim5: u16,
+    offset_tim3: u16,
 }
 
 impl BlackpillEscDriver {
@@ -202,53 +204,46 @@ impl BlackpillEscDriver {
         mut pwm_tim3: SimplePwm<'static, TIM3>,
     ) -> Self {
         {
-            let max_duty = pwm_tim5.max_duty_cycle() as f32;
-            pwm_tim5.ch1().set_duty_cycle((0.2 * max_duty) as u16);
-            pwm_tim5.ch3().set_duty_cycle((0.3 * max_duty) as u16);
             pwm_tim5.ch1().enable();
             pwm_tim5.ch3().enable();
         }
         {
-            let max_duty = pwm_tim3.max_duty_cycle() as f32;
-            pwm_tim3.ch3().set_duty_cycle((0.5 * max_duty) as u16);
-            pwm_tim3.ch4().set_duty_cycle((0.6 * max_duty) as u16);
             pwm_tim3.ch3().enable();
             pwm_tim3.ch4().enable();
         }
+        let offset_tim5 = (pwm_tim5.max_duty_cycle() as f32 * 0.05) as u16;
+        let offset_tim3 = (pwm_tim3.max_duty_cycle() as f32 * 0.05) as u16;
         Self {
-            _pwm_tim5: pwm_tim5,
-            _pwm_tim3: pwm_tim3,
+            pwm_tim5,
+            pwm_tim3,
+            offset_tim5,
+            offset_tim3,
         }
     }
-
-    /*fn get_max_duty(&self) -> u16 {
-        self.pwm.max_duty_cycle()
-    }
-
-    fn scale_duty(&self, duty: f32) -> u16 {
-        if duty == 0.0 {
-            return 0;
-        } else {
-            return ((self.get_max_duty() - MINIMAL_DUTY) as f32 * duty) as u16 + MINIMAL_DUTY;
-        }
-    }
-
-    fn set_duty(&mut self, duty: [f32; 2]) {
-        let scaled_duty = duty.map(|d| {
-            self.scale_duty(fabs(d as f64) as f32)
-                .clamp(0, self.get_max_duty())
-        });
-        info!(
-            "duty={} => scaled_duty={} (max={})",
-            duty,
-            scaled_duty,
-            self.pwm.max_duty_cycle()
-        );
-        self.pwm.ch1().set_duty_cycle(scaled_duty[0]);
-        self.pwm.ch2().set_duty_cycle(scaled_duty[1]);
-    }*/
 }
 
 impl EscDriver for BlackpillEscDriver {
-    fn update(&mut self, _thrust: [f32; 4]) {}
+    fn update(&mut self, thrust: [f32; 4]) {
+        // M1 (PB0 @ TIM3)
+        self.pwm_tim3
+            .ch3()
+            .set_duty_cycle(calc(thrust[0], self.offset_tim3));
+        // M2 (PB1 @ TIM3)
+        self.pwm_tim3
+            .ch4()
+            .set_duty_cycle(calc(thrust[1], self.offset_tim3));
+        // M3 (PA0 @ TIM5)
+        self.pwm_tim5
+            .ch1()
+            .set_duty_cycle(calc(thrust[2], self.offset_tim5));
+        // M4 (PA2 @ TIM5)
+        self.pwm_tim5
+            .ch3()
+            .set_duty_cycle(calc(thrust[3], self.offset_tim5));
+    }
+}
+
+fn calc(input: f32, offset: u16) -> u16 {
+    let clamped = f32::max(f32::min(input, 1.0), 0.0);
+    (clamped * offset as f32) as u16 + offset
 }

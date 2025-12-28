@@ -13,7 +13,7 @@ struct Config {
     #[arg(short, long, default_value = "115200")]
     baud: u32,
 
-    #[arg(short, long, value_parser = parse_motor_array)]
+    #[arg(short, long, default_value = "0.0,0.0,0.0,0.0", value_parser = parse_motor_array)]
     values: [f32; 4],
 }
 
@@ -45,10 +45,7 @@ async fn main() -> Result<()> {
         .open_native_async()?;
 
     let cmd = Message::MotorDebug {
-        m1: config.values[0],
-        m2: config.values[1],
-        m3: config.values[2],
-        m4: config.values[3],
+        thrust: config.values,
     };
     let mut buf: [u8; 32] = [0; 32];
     let data = encode(&cmd, &mut buf)?;
