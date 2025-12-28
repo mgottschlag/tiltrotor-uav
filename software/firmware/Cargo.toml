@@ -12,17 +12,11 @@ cortex-m = { workspace = true }
 cortex-m-rt = { workspace = true }
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }
-display-interface = { workspace = true }
-dummy-pin = { workspace = true }
-embedded-graphics = { workspace = true }
-embedded-sdmmc = { workspace = true }
-heapless = { workspace = true }
 icm20689 = { workspace = true }
 libm = { workspace = true }
 mpu9250 = { workspace = true }
 panic-probe = { workspace = true }
 sbus-rs = { workspace = true }
-ssd1306 = { workspace = true }
 static_cell = { workspace = true }
 thiserror-no-std = { workspace = true }
 

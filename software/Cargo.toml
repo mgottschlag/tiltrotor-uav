@@ -16,11 +16,6 @@ defmt-rtt = "0.4.1"
 fusion-ahrs = "0.2.0"
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"]}
 cortex-m-rt = "0.7.3"
-display-interface = { version = "0.5.0", features = ["defmt-03"] }
-dummy-pin = "1.0.0"
-embedded-graphics = "0.8.1"
-embedded-sdmmc = { version = "0.7.0", features = ["defmt-log"], default-features = false }
-heapless = { version = "0.8.0", features = ["defmt-03"] }
 icm20689 = "0.1.1"
 libm = "0.2.8"
 mpu9250 = "0.25.0"
