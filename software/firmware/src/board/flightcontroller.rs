@@ -156,10 +156,10 @@ impl Board {
         // init esc driver
         let pwm_tim5 = SimplePwm::new(
             p.TIM5,
-            None,
+            Some(PwmPin::new(p.PA0, OutputType::PushPull)),
             None,
             Some(PwmPin::new(p.PA2, OutputType::PushPull)),
-            Some(PwmPin::new(p.PA3, OutputType::PushPull)),
+            None,
             hz(50),
             Default::default(),
         );
@@ -195,20 +195,18 @@ impl BlackpillEscDriver {
     ///
     /// M1: PB0
     /// M2: PB1
-    /// M3: PA3 (maybe, according to [1])
+    /// M3: PA0 (TX4, M3 seems to be broken on flightcontroller board)
     /// M4: PA2
-    ///
-    /// [1] https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config
     pub fn init(
         mut pwm_tim5: SimplePwm<'static, TIM5>,
         mut pwm_tim3: SimplePwm<'static, TIM3>,
     ) -> Self {
         {
             let max_duty = pwm_tim5.max_duty_cycle() as f32;
+            pwm_tim5.ch1().set_duty_cycle((0.2 * max_duty) as u16);
             pwm_tim5.ch3().set_duty_cycle((0.3 * max_duty) as u16);
-            pwm_tim5.ch4().set_duty_cycle((0.4 * max_duty) as u16);
+            pwm_tim5.ch1().enable();
             pwm_tim5.ch3().enable();
-            pwm_tim5.ch4().enable();
         }
         {
             let max_duty = pwm_tim3.max_duty_cycle() as f32;
