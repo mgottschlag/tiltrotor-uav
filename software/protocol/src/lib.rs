@@ -13,6 +13,13 @@ pub enum Message {
     MotorDebug {
         thrust: [f32; 4], // [0.0 .. 1.0]
     },
+    ImuData {
+        gyro: [f32; 3],
+        accel: [f32; 3],
+        rates: [f32; 2],
+        thrust_input: [f32; 4], // [0.0 .. 1.0]
+        thrust: [f32; 4],       // [0.0 .. 1.0]
+    },
 }
 
 pub fn encode<'a>(msg: &Message, buf: &'a mut [u8]) -> Result<&'a mut [u8], postcard::Error> {

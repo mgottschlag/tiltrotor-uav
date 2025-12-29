@@ -17,7 +17,7 @@ impl Kf {
         }
     }
 
-    pub fn update(&mut self, gyro: [f32; 3], accel: [f32; 3]) -> [f32; 4] {
+    pub fn update(&mut self, gyro: [f32; 3], accel: [f32; 3]) -> ([f32; 2], [f32; 4]) {
         self.ahrs
             .update_no_magnetometer(Vector3::from(gyro), Vector3::from(accel), self.dt);
         let quat: UnitQuaternion<f32> = self.ahrs.quaternion();
@@ -33,11 +33,14 @@ impl Kf {
         let roll_rate = gyro[0];
         let pitch_rate = gyro[1];
 
-        [
-            0.6 + kp * roll - kd * roll_rate,
-            0.6 - kp * roll - kd * roll_rate,
-            0.6 - kp * pitch - kd * pitch_rate,
-            0.6 + kp * pitch - kd * pitch_rate,
-        ]
+        (
+            [roll_rate, pitch_rate],
+            [
+                0.6 + kp * roll - kd * roll_rate,
+                0.6 - kp * roll - kd * roll_rate,
+                0.6 - kp * pitch - kd * pitch_rate,
+                0.6 + kp * pitch - kd * pitch_rate,
+            ],
+        )
     }
 }

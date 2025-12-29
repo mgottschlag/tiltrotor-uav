@@ -41,6 +41,7 @@ pub type UsbClass = CdcAcmClass<'static, usb::Driver<'static, USB_OTG_FS>>;
 pub type UsbDevice = embassy_usb::UsbDevice<'static, usb::Driver<'static, USB_OTG_FS>>;
 pub type UsbReceiver =
     embassy_usb::class::cdc_acm::Receiver<'static, usb::Driver<'static, USB_OTG_FS>>;
+pub type UsbSender = embassy_usb::class::cdc_acm::Sender<'static, usb::Driver<'static, USB_OTG_FS>>;
 pub type EscDriverType = BlackpillEscDriver;
 
 bind_interrupts!(struct Irqs {
