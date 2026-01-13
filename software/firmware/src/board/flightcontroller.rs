@@ -28,6 +28,7 @@ use embassy_usb::class::cdc_acm::State;
 use static_cell::StaticCell;
 
 // see https://github.com/betaflight/unified-targets/blob/master/configs/default/OPEN-REVO.config for pin map
+// or  https://www.getfpv.com/lumenier-skitzo-flight-controller-powered-by-flightone.html for some general information
 type RadioRx = Peri<'static, PA10>;
 type RadioTx = Peri<'static, PA9>;
 type ImuSck = Peri<'static, PA5>;

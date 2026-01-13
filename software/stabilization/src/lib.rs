@@ -10,14 +10,19 @@ pub struct Kf {
 }
 
 impl Kf {
-    pub fn new() -> Self {
+    pub fn new(dt: f32) -> Self {
         Self {
             ahrs: Ahrs::new(),
-            dt: 0.002,
+            dt,
         }
     }
 
-    pub fn update(&mut self, gyro: [f32; 3], accel: [f32; 3]) -> ([f32; 2], [f32; 4]) {
+    pub fn update(
+        &mut self,
+        gyro: [f32; 3],
+        accel: [f32; 3],
+        thrust: [f32; 4],
+    ) -> ([f32; 2], [f32; 4]) {
         self.ahrs
             .update_no_magnetometer(Vector3::from(gyro), Vector3::from(accel), self.dt);
         let quat: UnitQuaternion<f32> = self.ahrs.quaternion();
@@ -36,10 +41,10 @@ impl Kf {
         (
             [roll_rate, pitch_rate],
             [
-                0.6 + kp * roll - kd * roll_rate,
-                0.6 - kp * roll - kd * roll_rate,
-                0.6 - kp * pitch - kd * pitch_rate,
-                0.6 + kp * pitch - kd * pitch_rate,
+                thrust[0] * 0.6 + kp * roll - kd * roll_rate,
+                thrust[1] * 0.6 - kp * roll - kd * roll_rate,
+                thrust[2] * 0.6 - kp * pitch - kd * pitch_rate,
+                thrust[3] * 0.6 + kp * pitch - kd * pitch_rate,
             ],
         )
     }

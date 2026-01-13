@@ -9,7 +9,6 @@ use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
 use embedded_io_async::Write;
 use panic_probe as _;
-use protocol::Message;
 use stabilization::Kf;
 
 mod board;
@@ -21,6 +20,7 @@ use board::UsbDevice;
 use board::UsbReceiver;
 use imu::Driver;
 use imu::Imu;
+use protocol::Message;
 use radio::Radio;
 
 use crate::board::EscDriver;
@@ -59,7 +59,8 @@ async fn main(spawner: Spawner) {
     info!("Setting up IMU ...");
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
     let mut imu = Imu::init(imu_driver);
-    let mut kf = Kf::new();
+    let mut kf = Kf::new(0.002);
+    //let mut kf = Kf::new(1.0);
     info!("Done setting up IMU");
 
     loop {
@@ -70,8 +71,12 @@ async fn main(spawner: Spawner) {
         }
 
         let (gyro, accel) = imu.get_rotations();
-        let (rates, thrust) = kf.update(gyro, accel);
-        //info!("thrust_input={}, thrust={}", thrust_input, thrust);
+        let (rates, thrust) = kf.update(gyro, accel, thrust_input);
+        info!(
+            "thrust_input={}, thrust={}, rates={}",
+            thrust_input, thrust, rates
+        );
+
         {
             let usb_connected = USB_CONNECTED.lock().await;
             if *usb_connected {
@@ -90,6 +95,7 @@ async fn main(spawner: Spawner) {
         }
 
         Timer::after_millis(2).await;
+        //Timer::after_millis(1000).await;
     }
 }
 
