@@ -4,12 +4,10 @@
 use defmt::{error, info, warn};
 use defmt_rtt as _;
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
-use embassy_sync::channel::Channel;
-use embassy_sync::channel::Sender;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
 use panic_probe as _;
-use protocol::Message;
 use stabilization::Kf;
 
 mod board;
@@ -21,11 +19,13 @@ use board::UsbDevice;
 use board::UsbReceiver;
 use imu::Driver;
 use imu::Imu;
+use protocol::Message;
 use radio::Radio;
 
 use crate::board::EscDriver;
 
-static CMD_CHANNEL: Channel<ThreadModeRawMutex, Message, 16> = Channel::new();
+// Maybe needs to be improved later to some  double buffering with atomic pointer switching.
+static THRUST: Mutex<CriticalSectionRawMutex, [f32; 4]> = Mutex::new([0.0; 4]);
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -55,23 +55,27 @@ async fn main(spawner: Spawner) {
 
     info!("Setting up IMU ...");
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
-    let mut _imu = Imu::init(imu_driver);
-    let mut _kf = Kf::new();
+    let mut imu = Imu::init(imu_driver);
+    let mut kf = Kf::new(0.002);
+    //let mut kf = Kf::new(1.0);
     info!("Done setting up IMU");
 
     loop {
-        let cmd = CMD_CHANNEL.receive().await;
-        info!("Command: {}", cmd);
-        match cmd {
-            Message::MotorDebug { thrust } => board.esc_driver.update(thrust),
-            _ => {}
+        let thrust_input;
+        {
+            let thrust_cmd = THRUST.lock().await;
+            thrust_input = *thrust_cmd;
         }
 
-        /*let (gyro, accel) = imu.get_rotations();
-        let _thrust = kf.update(gyro, accel);
-        //info!("thrust={}", thrust);
+        let (gyro, accel) = imu.get_rotations();
+        let (rates, thrust) = kf.update(gyro, accel, thrust_input);
+        info!(
+            "thrust_input={}, thrust={}, rates={}",
+            thrust_input, thrust, rates
+        );
 
-        Timer::after_millis(2).await;*/
+        Timer::after_millis(2).await;
+        //Timer::after_millis(1000).await;
     }
 }
 
@@ -97,7 +101,18 @@ async fn poll_radio(mut radio: Radio) {
             continue;
         }
         info!("Got command: {}", cmd);
-        CMD_CHANNEL.send(cmd.clone()).await;
+        match cmd {
+            Message::Command {
+                roll: _,
+                pitch: _,
+                yaw: _,
+                thrust,
+            } => {
+                let mut thrust_cmd = THRUST.lock().await;
+                *thrust_cmd = [thrust; 4];
+            }
+            _ => {}
+        }
         last_cmd = cmd;
     }
 }
@@ -119,7 +134,13 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
         match protocol::decode(&buf[..n]) {
             Ok(cmd) => {
                 info!("Got command: {}", cmd);
-                CMD_CHANNEL.send(cmd).await;
+                match cmd {
+                    Message::MotorDebug { thrust } => {
+                        let mut thrust_cmd = THRUST.lock().await;
+                        *thrust_cmd = thrust;
+                    }
+                    _ => {}
+                }
             }
             Err(_) => warn!("Failed to decode message"), // TODO: print actual error
         };
