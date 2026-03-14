@@ -60,7 +60,6 @@ async fn main(spawner: Spawner) {
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
     let mut imu = Imu::init(imu_driver);
     let mut kf = Kf::new(0.002);
-    //let mut kf = Kf::new(1.0);
     info!("Done setting up IMU");
 
     loop {
@@ -95,7 +94,6 @@ async fn main(spawner: Spawner) {
         }
 
         Timer::after_millis(2).await;
-        //Timer::after_millis(1000).await;
     }
 }
 
@@ -173,19 +171,16 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
 
 async fn send_usb(sender: &mut UsbSender, msg: &Message) {
     let mut buf: [u8; 128] = [0; 128];
-    let data = match protocol::encode(msg, &mut buf[1..]) {
+    let len = match protocol::encode(msg, &mut buf[1..]) {
         Ok(data) => data,
         Err(_e) => {
             error!("Failed to encode message"); // TODO: print actual error
             return;
         }
     };
-    // TODO: integrate into protocol
-    if let Err(e) = sender.write(&[data.len() as u8]).await {
-        warn!("Failed to send message header via usb: {}", e);
-    }
-    info!("Sending data: {:?}", data);
-    if let Err(e) = sender.write(&data).await {
-        warn!("Failed to send message via usb: {} (len={})", e, data.len());
+    buf[0] = len as u8; // TODO: integrate into protocol
+    info!("Sending data (len={}): {:?}", len, buf[..len + 1]);
+    if let Err(e) = sender.write(&buf[..len + 1]).await {
+        warn!("Failed to send message via usb: {} (len={})", e, len);
     }
 }

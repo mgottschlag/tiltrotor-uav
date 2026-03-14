@@ -58,7 +58,6 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         while let Some(line) = decoder.next().await {
             let line = line.unwrap(); // TODO
-            println!("???? {:?} (len={})", line, line.len());
             for b in &line {
                 print!("{:02X} ", b);
             }
@@ -96,8 +95,8 @@ async fn main() -> Result<()> {
                     let thrust = parse_motor_array(&args[1])?;
                     let cmd = Message::MotorDebug { thrust: thrust };
                     let mut buf: [u8; 32] = [0; 32];
-                    let data = encode(&cmd, &mut buf)?;
-                    writer.write_all(data).await?;
+                    let len = encode(&cmd, &mut buf)?;
+                    writer.write_all(&buf[..len]).await?;
                     writer.flush().await?;
                 }
                 _ => {}
