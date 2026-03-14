@@ -7,6 +7,7 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::Timer;
+use embedded_io_async::Write;
 use panic_probe as _;
 use stabilization::Kf;
 
@@ -23,9 +24,11 @@ use protocol::Message;
 use radio::Radio;
 
 use crate::board::EscDriver;
+use crate::board::UsbSender;
 
 // Maybe needs to be improved later to some  double buffering with atomic pointer switching.
 static THRUST: Mutex<CriticalSectionRawMutex, [f32; 4]> = Mutex::new([0.0; 4]);
+static USB_CONNECTED: Mutex<CriticalSectionRawMutex, bool> = Mutex::new(false);
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -34,7 +37,7 @@ async fn main(spawner: Spawner) {
     board.esc_driver.update([0.0; 4]);
 
     info!("Setting up usb ...");
-    let (_usb_sender, usb_receiver) = board.usb_class.split();
+    let (mut usb_sender, usb_receiver) = board.usb_class.split();
     if let Err(e) = spawner.spawn(run_usb(board.usb_device)) {
         error!("Failed to spawn usb run task: {}", e);
         panic!()
@@ -57,7 +60,6 @@ async fn main(spawner: Spawner) {
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
     let mut imu = Imu::init(imu_driver);
     let mut kf = Kf::new(0.002);
-    //let mut kf = Kf::new(1.0);
     info!("Done setting up IMU");
 
     loop {
@@ -74,8 +76,24 @@ async fn main(spawner: Spawner) {
             thrust_input, thrust, rates
         );
 
+        {
+            let usb_connected = USB_CONNECTED.lock().await;
+            if *usb_connected {
+                send_usb(
+                    &mut usb_sender,
+                    &Message::ImuData {
+                        gyro,
+                        accel,
+                        rates,
+                        thrust_input,
+                        thrust,
+                    },
+                )
+                .await;
+            }
+        }
+
         Timer::after_millis(2).await;
-        //Timer::after_millis(1000).await;
     }
 }
 
@@ -127,6 +145,10 @@ async fn run_usb(mut usb_device: UsbDevice) {
 async fn poll_usb(mut usb_class: UsbReceiver) {
     info!("Waiting for usb connection ...");
     usb_class.wait_connection().await;
+    {
+        let mut usb_connected = USB_CONNECTED.lock().await;
+        *usb_connected = true;
+    }
     info!("Usb connected");
     let mut buf = [0; 64];
     loop {
@@ -144,5 +166,21 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
             }
             Err(_) => warn!("Failed to decode message"), // TODO: print actual error
         };
+    }
+}
+
+async fn send_usb(sender: &mut UsbSender, msg: &Message) {
+    let mut buf: [u8; 128] = [0; 128];
+    let len = match protocol::encode(msg, &mut buf[1..]) {
+        Ok(data) => data,
+        Err(_e) => {
+            error!("Failed to encode message"); // TODO: print actual error
+            return;
+        }
+    };
+    buf[0] = len as u8; // TODO: integrate into protocol
+    info!("Sending data (len={}): {:?}", len, buf[..len + 1]);
+    if let Err(e) = sender.write(&buf[..len + 1]).await {
+        warn!("Failed to send message via usb: {} (len={})", e, len);
     }
 }

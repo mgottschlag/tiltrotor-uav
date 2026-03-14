@@ -13,10 +13,18 @@ pub enum Message {
     MotorDebug {
         thrust: [f32; 4], // [0.0 .. 1.0]
     },
+    ImuData {
+        gyro: [f32; 3],
+        accel: [f32; 3],
+        rates: [f32; 2],
+        thrust_input: [f32; 4], // [0.0 .. 1.0]
+        thrust: [f32; 4],       // [0.0 .. 1.0]
+    },
 }
 
-pub fn encode<'a>(msg: &Message, buf: &'a mut [u8]) -> Result<&'a mut [u8], postcard::Error> {
-    postcard::to_slice(msg, buf)
+pub fn encode(msg: &Message, buf: &mut [u8]) -> Result<usize, postcard::Error> {
+    let data = postcard::to_slice(msg, buf)?;
+    Ok(data.len())
 }
 
 pub fn decode(data: &[u8]) -> Result<Message, postcard::Error> {
@@ -36,8 +44,8 @@ mod tests {
             thrust: 0.0,
         };
         let mut buf = [0; 255];
-        let data = encode(&msg, &mut buf).unwrap();
-        let msg_decoded = decode(data).unwrap();
+        let len = encode(&msg, &mut buf).unwrap();
+        let msg_decoded = decode(&buf[..len]).unwrap();
         assert_eq!(msg, msg_decoded)
     }
 
@@ -47,8 +55,8 @@ mod tests {
             thrust: [0.1, 0.2, 0.3, 0.4],
         };
         let mut buf = [0; 255];
-        let data = encode(&msg, &mut buf).unwrap();
-        let msg_decoded = decode(data).unwrap();
+        let len = encode(&msg, &mut buf).unwrap();
+        let msg_decoded = decode(&buf[..len]).unwrap();
         assert_eq!(msg, msg_decoded)
     }
 }
