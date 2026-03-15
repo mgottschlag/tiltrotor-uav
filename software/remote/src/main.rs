@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use anyhow::anyhow;
 use clap::Parser;
@@ -5,6 +7,7 @@ use futures_util::StreamExt;
 use protocol::Message;
 use protocol::encode;
 use rustyline::error::ReadlineError;
+use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio_serial::SerialPortBuilderExt;
 use tokio_util::codec::FramedRead;
@@ -23,6 +26,9 @@ struct Config {
 
     #[arg(short, long, default_value = "115200")]
     baud: u32,
+
+    #[arg(short, long)]
+    imu_data_path: Option<PathBuf>,
 }
 
 fn parse_motor_array(s: &str) -> Result<[f32; 4]> {
@@ -56,14 +62,21 @@ async fn main() -> Result<()> {
     let (reader, mut writer) = tokio::io::split(port);
     let mut decoder = FramedRead::new(reader, FrameDecoder {});
     tokio::spawn(async move {
+        let mut imu_data_file = match config.imu_data_path {
+            Some(imu_data_path) => Some(File::create(imu_data_path).await.unwrap()),
+            None => None,
+        };
+
         while let Some(line) = decoder.next().await {
             let line = line.unwrap(); // TODO
-            for b in &line {
-                print!("{:02X} ", b);
-            }
-            println!();
             let msg = protocol::decode(&line).unwrap();
-            println!("Foo: {:?}", msg);
+            //println!("Foo: {:?}", msg);
+
+            if let Some(imu_data_file) = imu_data_file.as_mut() {
+                let mut data = serde_json::to_vec(&msg).unwrap();
+                data.push(b'\n');
+                imu_data_file.write_all(&data).await.unwrap();
+            }
         }
     });
 

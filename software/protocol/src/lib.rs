@@ -17,8 +17,7 @@ pub enum Message {
         gyro: [f32; 3],
         accel: [f32; 3],
         rates: [f32; 2],
-        thrust_input: [f32; 4], // [0.0 .. 1.0]
-        thrust: [f32; 4],       // [0.0 .. 1.0]
+        thrust: [f32; 4], // [0.0 .. 1.0]
     },
 }
 

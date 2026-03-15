@@ -25,6 +25,7 @@ panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 postcard = "1.0"
 sbus-rs = { version = "0.1.2", features = ["async"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = "1.0.149"
 ssd1306 = "0.10.0"
 static_cell = "2"
 thiserror-no-std = "2.0.2"

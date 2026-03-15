@@ -85,7 +85,6 @@ async fn main(spawner: Spawner) {
                         gyro,
                         accel,
                         rates,
-                        thrust_input,
                         thrust,
                     },
                 )
