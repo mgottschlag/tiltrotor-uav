@@ -21,4 +21,25 @@ jobs:
       working-directory: software/firmware
       run: |
         rustup target add $TARGET
-        cargo build-flightcontroller --verbose
+        cargo build-flightcontroller
+
+  protocol:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Build
+      working-directory: software/protocol
+      run: |
+        cargo build --release
+        cargo test
+
+  remote:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Build
+      working-directory: software/remote
+      run: |
+        cargo build --release
