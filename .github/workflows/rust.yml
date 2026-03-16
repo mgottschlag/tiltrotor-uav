@@ -16,7 +16,9 @@ jobs:
       TARGET: thumbv7em-none-eabihf
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/setup-rust@v1
     - name: Build
+      working-directory: software/firmware
       run: |
         rustup target add $TARGET
         cargo build-flightcontroller --verbose
