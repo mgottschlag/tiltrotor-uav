@@ -15,8 +15,8 @@ jobs:
     env:
       TARGET: thumbv7em-none-eabihf
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-rust@v1
+    - uses: actions/checkout@v5
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
     - name: Build
       working-directory: software/firmware
       run: |
