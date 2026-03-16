@@ -1,0 +1,45 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    env:
+      TARGET: thumbv7em-none-eabihf
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Build
+      working-directory: software/firmware
+      run: |
+        rustup target add $TARGET
+        cargo build-flightcontroller
+
+  protocol:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Build
+      working-directory: software/protocol
+      run: |
+        cargo build --release
+        cargo test
+
+  remote:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Build
+      working-directory: software/remote
+      run: |
+        cargo build --release
