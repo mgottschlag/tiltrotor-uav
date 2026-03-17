@@ -169,17 +169,16 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
 }
 
 async fn send_usb(sender: &mut UsbSender, msg: &Message) {
-    let mut buf: [u8; 128] = [0; 128];
-    let len = match protocol::encode(msg, &mut buf[1..]) {
+    let mut buf = [0u8; 128];
+    let len = match protocol::encode(msg, &mut buf) {
         Ok(data) => data,
         Err(_e) => {
             error!("Failed to encode message"); // TODO: print actual error
             return;
         }
     };
-    buf[0] = len as u8; // TODO: integrate into protocol
-    info!("Sending data (len={}): {:?}", len, buf[..len + 1]);
-    if let Err(e) = sender.write(&buf[..len + 1]).await {
+    info!("Sending data (len={}): {:?}", len, buf[..len]);
+    if let Err(e) = sender.write(&buf[..len]).await {
         warn!("Failed to send message via usb: {} (len={})", e, len);
     }
 }

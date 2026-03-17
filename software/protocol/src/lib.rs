@@ -17,17 +17,22 @@ pub enum Message {
         gyro: [f32; 3],
         accel: [f32; 3],
         rates: [f32; 2],
-        thrust: [f32; 4], // [0.0 .. 1.0]
+        thrust_input: [f32; 4], // [0.0 .. 1.0]
+        thrust: [f32; 4],       // [0.0 .. 1.0]
     },
 }
 
 pub fn encode(msg: &Message, buf: &mut [u8]) -> Result<usize, postcard::Error> {
-    let data = postcard::to_slice(msg, buf)?;
-    Ok(data.len())
+    let (header_buf, payload_buf) = buf.split_at_mut(1);
+    let payload = postcard::to_slice(msg, payload_buf)?;
+    assert!(payload.len() <= u8::MAX as usize);
+    header_buf[0] = payload.len() as u8;
+    Ok(payload.len() + 1)
 }
 
 pub fn decode(data: &[u8]) -> Result<Message, postcard::Error> {
-    postcard::from_bytes(data)
+    let len = data[0] as usize;
+    postcard::from_bytes(&data[1..len + 1])
 }
 
 #[cfg(test)]
@@ -43,8 +48,8 @@ mod tests {
             thrust: 0.0,
         };
         let mut buf = [0; 255];
-        let len = encode(&msg, &mut buf).unwrap();
-        let msg_decoded = decode(&buf[..len]).unwrap();
+        encode(&msg, &mut buf).unwrap();
+        let msg_decoded = decode(&buf).unwrap();
         assert_eq!(msg, msg_decoded)
     }
 
@@ -54,8 +59,8 @@ mod tests {
             thrust: [0.1, 0.2, 0.3, 0.4],
         };
         let mut buf = [0; 255];
-        let len = encode(&msg, &mut buf).unwrap();
-        let msg_decoded = decode(&buf[..len]).unwrap();
+        encode(&msg, &mut buf).unwrap();
+        let msg_decoded = decode(&buf).unwrap();
         assert_eq!(msg, msg_decoded)
     }
 }
