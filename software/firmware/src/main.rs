@@ -59,22 +59,27 @@ async fn main(spawner: Spawner) {
     info!("Setting up IMU ...");
     let imu_driver = imu::Icm20689::init(board.imu_spi, board.imu_cs);
     let mut imu = Imu::init(imu_driver);
-    let mut kf = Kf::new(0.002);
+    let mut kf = Kf::new(0.02);
     info!("Done setting up IMU");
 
+    let mut thrust_old = [0f32; 4];
     loop {
         let thrust_input;
         {
             let thrust_cmd = THRUST.lock().await;
             thrust_input = *thrust_cmd;
         }
+        if thrust_input != thrust_old {
+            info!("Updated thrust: {}", thrust_input);
+            thrust_old = thrust_input;
+        }
 
         let (gyro, accel) = imu.get_rotations();
         let (rates, thrust) = kf.update(gyro, accel, thrust_input);
-        info!(
+        /*info!(
             "thrust_input={}, thrust={}, rates={}",
             thrust_input, thrust, rates
-        );
+        );*/
 
         {
             let usb_connected = USB_CONNECTED.lock().await;
@@ -85,6 +90,7 @@ async fn main(spawner: Spawner) {
                         gyro,
                         accel,
                         rates,
+                        thrust_input,
                         thrust,
                     },
                 )
@@ -92,7 +98,8 @@ async fn main(spawner: Spawner) {
             }
         }
 
-        Timer::after_millis(2).await;
+        board.esc_driver.update(thrust_input);
+        Timer::after_millis(1000).await;
     }
 }
 
@@ -151,8 +158,9 @@ async fn poll_usb(mut usb_class: UsbReceiver) {
     info!("Usb connected");
     let mut buf = [0; 64];
     loop {
-        let n = usb_class.read_packet(&mut buf).await.unwrap();
-        match protocol::decode(&buf[..n]) {
+        let len = usb_class.read_packet(&mut buf).await.unwrap();
+        info!("Received {} bytes", len);
+        match protocol::decode(&buf[..len]) {
             Ok(cmd) => {
                 info!("Got command: {}", cmd);
                 match cmd {
@@ -178,7 +186,7 @@ async fn send_usb(sender: &mut UsbSender, msg: &Message) {
         }
     };
     info!("Sending data (len={}): {:?}", len, buf[..len]);
-    if let Err(e) = sender.write(&buf[..len]).await {
+    if let Err(e) = sender.write_all(&buf[..len]).await {
         warn!("Failed to send message via usb: {} (len={})", e, len);
     }
 }

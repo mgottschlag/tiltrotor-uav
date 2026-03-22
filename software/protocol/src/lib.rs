@@ -1,3 +1,11 @@
+//! Implements the USB protocol.
+//!
+//! +-------------------------------+
+//! |            FRAME              |
+//! +---------------+---------------+
+//! |    HEADER     |    PAYLOAD    |
+//! +---------------+---------------+
+//!
 #![no_std]
 
 use serde::{Deserialize, Serialize};
@@ -22,17 +30,20 @@ pub enum Message {
     },
 }
 
+const HEADER_LEN: usize = 1;
+
 pub fn encode(msg: &Message, buf: &mut [u8]) -> Result<usize, postcard::Error> {
     let (header_buf, payload_buf) = buf.split_at_mut(1);
     let payload = postcard::to_slice(msg, payload_buf)?;
-    assert!(payload.len() <= u8::MAX as usize);
-    header_buf[0] = payload.len() as u8;
-    Ok(payload.len() + 1)
+    let frame_len = payload.len() + HEADER_LEN;
+    assert!(frame_len <= u8::MAX as usize);
+    header_buf[0] = frame_len as u8;
+    Ok(frame_len)
 }
 
 pub fn decode(data: &[u8]) -> Result<Message, postcard::Error> {
-    let len = data[0] as usize;
-    postcard::from_bytes(&data[1..len + 1])
+    let frame_len: usize = data[0] as usize;
+    postcard::from_bytes(&data[HEADER_LEN..frame_len])
 }
 
 #[cfg(test)]

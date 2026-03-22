@@ -70,7 +70,6 @@ async fn main() -> Result<()> {
         while let Some(line) = decoder.next().await {
             let line = line.unwrap(); // TODO
             let msg = protocol::decode(&line).unwrap();
-            //println!("Foo: {:?}", msg);
 
             if let Some(imu_data_file) = imu_data_file.as_mut() {
                 let mut data = serde_json::to_vec(&msg).unwrap();

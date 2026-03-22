@@ -1,4 +1,3 @@
-use bytes::Buf;
 use bytes::Bytes;
 use bytes::BytesMut;
 use tokio_util::codec::Decoder;
@@ -14,12 +13,9 @@ impl Decoder for FrameDecoder {
             return Ok(None);
         }
         let frame_len = buf[0] as usize;
-        if buf.len() < 1 + frame_len {
+        if buf.len() < frame_len + 1 {
             return Ok(None);
         }
-
-        buf.advance(1);
-        let data = buf.split_to(frame_len);
-        Ok(Some(data.freeze()))
+        Ok(Some(buf.split_to(frame_len).into()))
     }
 }
